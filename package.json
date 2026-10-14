@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "benchmark": "node --test tests/*.benchmark.js"
   },
   "keywords": [
     "phaser",
@@ -22,6 +23,9 @@
     "phaser": "^4.2.1"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
     "vite": "^8.3.4"
   }
 }

@@ -1,0 +1,12 @@
+{
+  "appId": "id.web.arie.cloudsim",
+  "appName": "Cloud & Data Center Simulator",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}
