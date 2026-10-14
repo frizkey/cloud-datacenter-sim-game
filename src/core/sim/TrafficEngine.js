@@ -100,6 +100,37 @@ export class TrafficEngine {
    * @returns {{ packet: Object, isCacheHit: boolean, dropReason?: string }}
    */
   processNodePacket(node, packet, randomFn = Math.random) {
+    // 1. WAF Deep Packet Inspection
+    if (node.type === NodeType.WAF_SHIELD) {
+      if (packet.type === PacketType.SQLI_ATTACK || packet.type === PacketType.DDOS_FLOOD) {
+        this.dropPacket(packet, 'WAF_ATTACK_BLOCKED');
+        node.blockedAttacksCount = (node.blockedAttacksCount || 0) + 1;
+        return { packet, isCacheHit: false, dropReason: 'WAF_ATTACK_BLOCKED' };
+      }
+    }
+
+    // 2. API Gateway Token Bucket Rate Limiting
+    if (node.type === NodeType.API_GATEWAY) {
+      const rateLimit = node.rateLimitPerSec || 5000;
+      if (node.currentRps > rateLimit) {
+        this.dropPacket(packet, 'RATE_LIMIT_429');
+        node.throttledRequestsCount = (node.throttledRequestsCount || 0) + 1;
+        return { packet, isCacheHit: false, dropReason: 'RATE_LIMIT_429' };
+      }
+    }
+
+    // 3. Message Broker Asynchronous Queue Buffering
+    if (node.type === NodeType.MESSAGE_BROKER) {
+      const bufferCap = node.bufferCapacity || 50000;
+      node.currentQueueDepth = node.currentQueueDepth || 0;
+      if (node.currentQueueDepth >= bufferCap) {
+        this.dropPacket(packet, 'BUFFER_OVERFLOW_504');
+        return { packet, isCacheHit: false, dropReason: 'BUFFER_OVERFLOW_504' };
+      }
+      node.currentQueueDepth++;
+      return { packet, isCacheHit: false, isBuffered: true };
+    }
+
     const capacity = node.capacityRps || 500;
     const currentRps = node.currentRps || 0;
 
@@ -123,7 +154,11 @@ export class TrafficEngine {
     }
 
     // Leaf nodes or terminal database queries complete successfully
-    if (node.type === NodeType.DATABASE_SQL || node.type === NodeType.OBJECT_STORAGE) {
+    if (
+      node.type === NodeType.DATABASE_SQL ||
+      node.type === NodeType.DATABASE_NOSQL ||
+      node.type === NodeType.OBJECT_STORAGE
+    ) {
       this.completePacket(packet);
       return { packet, isCacheHit: false };
     }

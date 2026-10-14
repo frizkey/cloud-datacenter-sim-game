@@ -8,6 +8,7 @@ import { COMPONENT_CATALOG, NodeType, SIM_CONSTANTS } from './Constants.js';
 import { TrafficEngine } from './TrafficEngine.js';
 import { EconomicEngine } from './EconomicEngine.js';
 import { ThermalEngine } from './ThermalEngine.js';
+import { PowerEngine } from './PowerEngine.js';
 import { EngineEventTypes, globalEventBus } from '../events/EventBus.js';
 
 let nodeCounter = 0;
@@ -29,6 +30,7 @@ export class SimulationEngine {
     this.trafficEngine = new TrafficEngine(this.eventBus);
     this.economicEngine = new EconomicEngine(this.eventBus);
     this.thermalEngine = new ThermalEngine(this.eventBus);
+    this.powerEngine = new PowerEngine(this.eventBus);
 
     this.simulationTickCount = 0;
     this.timeAccumulator = 0;
@@ -41,6 +43,11 @@ export class SimulationEngine {
 
     this.eventBus.on(EngineEventTypes.PACKET_DROPPED, (evt) => {
       this.economicEngine.recordDroppedRequest(1);
+    });
+
+    // Wire incident remediation actions
+    this.eventBus.on('INCIDENT_REMEDIATION_REQUEST', (evt) => {
+      this.handleRemediationAction(evt);
     });
   }
 
@@ -188,19 +195,83 @@ export class SimulationEngine {
     // 2. Advance thermodynamics engine
     this.thermalEngine.tick(deltaSec, this.facilityComponents);
 
-    // 3. Advance economic engine
+    // 3. Advance electrical power and UPS engine
+    this.powerEngine.tick(deltaSec, this.facilityComponents);
+
+    // 4. Advance economic engine
     this.economicEngine.tick(deltaSec);
 
-    // 4. Emit simulation events
+    // 5. Emit simulation events
     this.eventBus.emit(EngineEventTypes.SIM_TICK, {
       tick: this.simulationTickCount,
       delta: deltaSec,
     });
 
-    // 5. Emit complete immutable state snapshot
+    // 6. Emit complete immutable state snapshot
     this.eventBus.emit(EngineEventTypes.STATE_SNAPSHOT_EMITTED, {
       snapshot: this.getSnapshot(),
     });
+  }
+
+  /**
+   * Handle incident remediation command from UI or contract event
+   * @param {Object} action
+   */
+  handleRemediationAction(action) {
+    if (!action || !action.actionType) return;
+
+    switch (action.actionType) {
+      case 'START_DIESEL_GENERATOR': {
+        for (const [id, comp] of this.facilityComponents.entries()) {
+          if (comp.type === 'DIESEL_GENERATOR' && !comp.isRunning) {
+            this.powerEngine.startGenerator(id, this.facilityComponents);
+            break;
+          }
+        }
+        break;
+      }
+      case 'ENABLE_DDOS_SHIELD': {
+        for (const node of this.nodes.values()) {
+          if (node.type === NodeType.WAF_SHIELD) {
+            node.isShieldActive = true;
+          }
+        }
+        break;
+      }
+      case 'DEPLOY_WAF_RULESET': {
+        for (const node of this.nodes.values()) {
+          if (node.type === NodeType.WAF_SHIELD) {
+            node.hasSqliRuleset = true;
+          }
+        }
+        break;
+      }
+      case 'TRIGGER_RAFT_QUORUM': {
+        for (const node of this.nodes.values()) {
+          if (node.type === NodeType.DATABASE_SQL || node.type === NodeType.DATABASE_NOSQL) {
+            node.isPartitioned = false;
+            node.status = 'HEALTHY';
+          }
+        }
+        break;
+      }
+      case 'EMERGENCY_EXHAUST_PURGE': {
+        for (const fac of this.facilityComponents.values()) {
+          if (fac.type === 'SERVER_RACK_42U') {
+            fac.temperatureCelsius = Math.max(22, (fac.temperatureCelsius || 22) - 15);
+          }
+        }
+        break;
+      }
+      case 'RESTART_NODE': {
+        if (action.targetComponentId && this.nodes.has(action.targetComponentId)) {
+          const node = this.nodes.get(action.targetComponentId);
+          node.status = 'HEALTHY';
+          node.cpuUtilization = 0.1;
+        }
+        break;
+      }
+    }
   }
 
   /**
@@ -214,6 +285,12 @@ export class SimulationEngine {
       simulationTickCount: this.simulationTickCount,
       pueRatio: this.thermalEngine.pueRatio,
       economicProfile: this.economicEngine.getProfile(),
+      powerProfile: {
+        isGridBlackout: this.powerEngine.isGridBlackout,
+        isFacilityPowered: this.powerEngine.isFacilityPowered,
+        totalLoadKw: this.powerEngine.totalLoadKw,
+        runtimeSecondsRemaining: this.powerEngine.runtimeSecondsRemaining,
+      },
       nodes: Array.from(this.nodes.values()).map((n) => ({ ...n })),
       connections: Array.from(this.connections.values()).map((c) => ({ ...c })),
       facilityComponents: Array.from(this.facilityComponents.values()).map((f) => ({ ...f })),

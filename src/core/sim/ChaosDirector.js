@@ -102,4 +102,65 @@ export class ChaosDirector {
   getActiveIncidents() {
     return Array.from(this.activeIncidents.values());
   }
+
+  triggerDdosFlood(targetIngressId) {
+    return this.triggerIncident({
+      type: IncidentType.DDOS_FLOOD,
+      severity: IncidentSeverity.TIER_2_MEDIUM,
+      title: 'Volumetric DDoS Attack',
+      description: 'Botnet saturating ingress bandwidth. Scrub traffic via Cloudflare Shield.',
+      targetComponentId: targetIngressId,
+      maxDurationSec: 30,
+      requiredRemediation: 'ENABLE_DDOS_SHIELD',
+    });
+  }
+
+  triggerSqliBreach(targetDbId) {
+    return this.triggerIncident({
+      type: IncidentType.SQLI_BREACH,
+      severity: IncidentSeverity.TIER_2_MEDIUM,
+      title: 'SQL Injection Exploit Breach',
+      description: 'Malicious SQL payload penetrating database. Deploy WAF ruleset patch.',
+      targetComponentId: targetDbId,
+      maxDurationSec: 40,
+      requiredRemediation: 'DEPLOY_WAF_RULESET',
+    });
+  }
+
+  triggerDatabaseSplitBrain(targetDbId) {
+    return this.triggerIncident({
+      type: IncidentType.DATABASE_SPLIT_BRAIN,
+      severity: IncidentSeverity.TIER_3_HIGH,
+      title: 'Database Split-Brain Partition',
+      description: 'Cross-zone network link severed. Quorum consensus election required.',
+      targetComponentId: targetDbId,
+      maxDurationSec: 45,
+      requiredRemediation: 'TRIGGER_RAFT_QUORUM',
+    });
+  }
+
+  triggerRackFire(targetRackId) {
+    return this.triggerIncident({
+      type: IncidentType.RACK_FIRE,
+      severity: IncidentSeverity.TIER_3_HIGH,
+      title: 'Server Rack Overheating Fire',
+      description: 'Rack exceeding 45°C and catching fire. Emergency exhaust purge required.',
+      targetComponentId: targetRackId,
+      maxDurationSec: 30,
+      requiredRemediation: 'EMERGENCY_EXHAUST_PURGE',
+    });
+  }
+
+  triggerPowerBlackout() {
+    return this.triggerIncident({
+      type: IncidentType.POWER_BLACKOUT,
+      severity: IncidentSeverity.TIER_3_HIGH,
+      title: 'Municipal Power Grid Blackout',
+      description: 'City power grid offline. Start emergency diesel generator before UPS battery dies.',
+      targetComponentId: 'facility_grid',
+      maxDurationSec: 40,
+      requiredRemediation: 'START_DIESEL_GENERATOR',
+    });
+  }
 }
+

@@ -16,9 +16,9 @@ export class BuildDrawer {
     this.container = options.container || document.body;
     this.onSelectComponent = options.onSelectComponent || (() => {});
     this.isCollapsed = false;
-    this.currentCategory = 'Compute';
+    this.currentCategory = 'Perimeter';
 
-    this.categories = ['Ingress', 'Routing', 'Compute', 'Storage', 'Facility'];
+    this.categories = ['Perimeter', 'Compute', 'Data & Queue', 'Facility'];
     this.rootElement = null;
 
     this.initDOM();
@@ -95,7 +95,26 @@ export class BuildDrawer {
     const palette = this.rootElement.querySelector('#drawer-palette');
     palette.innerHTML = '';
 
-    const items = Object.values(COMPONENT_CATALOG).filter((item) => item.category === category);
+    const items = Object.values(COMPONENT_CATALOG).filter((item) => {
+      if (category === 'Perimeter') {
+        return (
+          item.category === 'Ingress' ||
+          item.category === 'Routing' ||
+          item.category === 'Security' ||
+          item.category === 'Edge'
+        );
+      }
+      if (category === 'Compute') {
+        return item.category === 'Compute';
+      }
+      if (category === 'Data & Queue') {
+        return item.category === 'Storage' || item.category === 'Queue';
+      }
+      if (category === 'Facility') {
+        return item.category === 'Facility';
+      }
+      return false;
+    });
 
     for (const item of items) {
       const buyDollars = (item.costBuy / 1_000_000).toFixed(2);
@@ -135,6 +154,7 @@ export class BuildDrawer {
       case NodeType.MESSAGE_BROKER: return '📨';
       case NodeType.CACHE_CLUSTER: return '💎';
       case NodeType.DATABASE_SQL: return '🗄️';
+      case NodeType.DATABASE_NOSQL: return '📚';
       case NodeType.OBJECT_STORAGE: return '📦';
       case FacilityComponentType.SERVER_RACK_42U: return '🏢';
       case FacilityComponentType.CRAC_CHILLER: return '❄️';

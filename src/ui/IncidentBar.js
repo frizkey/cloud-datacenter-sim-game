@@ -56,6 +56,12 @@ export class IncidentBar {
     remediateBtn.addEventListener('click', () => {
       if (this.activeIncident) {
         this.onRemediate(this.activeIncident.id, this.activeIncident.requiredRemediation);
+        globalEventBus.emit('INCIDENT_REMEDIATION_REQUEST', {
+          incidentId: this.activeIncident.id,
+          actionType: this.activeIncident.requiredRemediation,
+          targetComponentId: this.activeIncident.targetComponentId,
+          timestamp: Date.now(),
+        });
       }
     });
   }

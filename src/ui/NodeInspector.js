@@ -107,8 +107,27 @@ export class NodeInspector {
 
     titleEl.textContent = node.name || node.type;
     typeEl.textContent = node.type;
-    rpsEl.textContent = `${node.currentRps || 0} / ${node.capacityRps || 500} RPS`;
-    cpuEl.textContent = `${Math.round((node.cpuUtilization || 0.1) * 100)}%`;
+
+    if (node.type === 'WAF_SHIELD') {
+      rpsEl.textContent = `Blocked: ${node.blockedAttacksCount || 0}`;
+      cpuEl.textContent = node.isShieldActive ? 'Shield ACTIVE' : 'Inspection ON';
+    } else if (node.type === 'CDN_EDGE') {
+      rpsEl.textContent = `Hit Rate: ${Math.round((node.cacheHitRate || 0.85) * 100)}%`;
+      cpuEl.textContent = 'Edge Cache';
+    } else if (node.type === 'MESSAGE_BROKER') {
+      rpsEl.textContent = `Queue: ${node.currentQueueDepth || 0} pkts`;
+      cpuEl.textContent = `Cap: ${node.bufferCapacity || 50000}`;
+    } else if (node.type === 'UPS_BATTERY') {
+      rpsEl.textContent = `Charge: ${Math.round(node.currentChargeKwh || 50)} kWh`;
+      cpuEl.textContent = `Max: ${node.capacityKwh || 50} kWh`;
+    } else if (node.type === 'DIESEL_GENERATOR') {
+      rpsEl.textContent = `Fuel: ${Math.round(node.fuelLiters || 500)} L`;
+      cpuEl.textContent = node.isRunning ? 'RUNNING' : 'STANDBY';
+    } else {
+      rpsEl.textContent = `${node.currentRps || 0} / ${node.capacityRps || 500} RPS`;
+      cpuEl.textContent = `${Math.round((node.cpuUtilization || 0.1) * 100)}%`;
+    }
+
     latEl.textContent = `${node.baseLatencyMs || 5}ms`;
     opexEl.textContent = `$${((node.costOpexPerSec || 0) / 1_000_000).toFixed(3)}/s`;
   }

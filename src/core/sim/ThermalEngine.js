@@ -101,6 +101,16 @@ export class ThermalEngine {
         coolingEffect += (effect / Math.max(1, dist * dist)) * 2.0 * deltaSec;
       }
 
+      // 2b. Containment barrier cooling bonus (+30% efficiency)
+      const containments = facList.filter((f) => f.type === FacilityComponentType.AISLE_CONTAINMENT);
+      for (const door of containments) {
+        const dist = Math.hypot(door.isoX - rack.isoX, door.isoY - rack.isoY);
+        if (dist <= 1.5) {
+          coolingEffect *= 1.30;
+          break;
+        }
+      }
+
       // 3. Passive ambient air dissipation towards 22°C
       const ambientDissipation = (this.ambientTempC - prevTemp) * 0.05 * deltaSec;
 

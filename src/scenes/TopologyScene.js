@@ -201,6 +201,7 @@ export class TopologyScene extends Phaser.Scene {
       case 'MESSAGE_BROKER': return '📨';
       case 'CACHE_CLUSTER': return '💎';
       case 'DATABASE_SQL': return '🗄️';
+      case 'DATABASE_NOSQL': return '📚';
       case 'OBJECT_STORAGE': return '📦';
       default: return '💻';
     }

@@ -15,6 +15,7 @@ export const NodeType = Object.freeze({
   MESSAGE_BROKER: 'MESSAGE_BROKER',
   CACHE_CLUSTER: 'CACHE_CLUSTER',
   DATABASE_SQL: 'DATABASE_SQL',
+  DATABASE_NOSQL: 'DATABASE_NOSQL',
   OBJECT_STORAGE: 'OBJECT_STORAGE',
 });
 
@@ -66,6 +67,8 @@ export const IncidentType = Object.freeze({
   CACHE_STAMPEDE: 'CACHE_STAMPEDE',
   RACK_OVERHEATING: 'RACK_OVERHEATING',
   POWER_BLACKOUT: 'POWER_BLACKOUT',
+  DATABASE_SPLIT_BRAIN: 'DATABASE_SPLIT_BRAIN',
+  RACK_FIRE: 'RACK_FIRE',
 });
 
 // Economic & Physics Constants
@@ -224,6 +227,18 @@ export const COMPONENT_CATALOG = Object.freeze({
     thermalWatts: 2000,
     colorHex: 0xf43f5e,
     description: 'ACID transactional persistence for critical customer data.',
+  },
+  [NodeType.DATABASE_NOSQL]: {
+    type: NodeType.DATABASE_NOSQL,
+    name: 'Distributed NoSQL Cluster',
+    category: 'Storage',
+    costBuy: 22_000_000, // $22.00
+    costOpexPerSec: 45_000, // $0.045/s
+    capacityRps: 2500,
+    baseLatencyMs: 10,
+    thermalWatts: 1600,
+    colorHex: 0xd946ef,
+    description: 'High-throughput horizontally partitioned NoSQL document & key-value store.',
   },
   [NodeType.OBJECT_STORAGE]: {
     type: NodeType.OBJECT_STORAGE,

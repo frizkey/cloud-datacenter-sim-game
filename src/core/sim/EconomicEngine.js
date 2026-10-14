@@ -43,6 +43,15 @@ export class EconomicEngine {
   }
 
   /**
+   * Record egress bandwidth for Object Storage ($0.00005/MB = 50 micro-cents/MB)
+   * @param {number} megabytes
+   */
+  recordEgressBandwidth(megabytes = 1) {
+    const egressCost = Math.round(megabytes * 50);
+    this.cashMicroCents -= egressCost;
+  }
+
+  /**
    * Record dropped or timed out requests
    * @param {number} count
    */

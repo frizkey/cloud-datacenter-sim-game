@@ -75,4 +75,60 @@ describe('Headless 10,000-Tick Stress & Determinism Benchmark', () => {
     assert.ok(profile.totalProcessedRequests > 10000, 'Must process significant traffic volume');
     assert.ok(profile.slaReputationPercent >= 90.0, 'SLA must remain healthy under balanced topology');
   });
+
+  it('executes 10,000 ticks with power grid blackout, UPS drain, and emergency generator spool-up', () => {
+    const bus = new EventBus();
+    const engine = new SimulationEngine({ eventBus: bus });
+
+    const ingress = engine.addNode({ type: NodeType.CLIENT_INGRESS, gridX: 0, gridY: 0 });
+    const kafka = engine.addNode({ type: NodeType.MESSAGE_BROKER, gridX: 2, gridY: 0 });
+    const pod = engine.addNode({ type: NodeType.COMPUTE_POD, gridX: 4, gridY: 0 });
+    const nosql = engine.addNode({ type: NodeType.DATABASE_NOSQL, gridX: 6, gridY: 0 });
+
+    engine.connectNodes(ingress.id, kafka.id);
+    engine.connectNodes(kafka.id, pod.id);
+    engine.connectNodes(pod.id, nosql.id);
+
+    // Setup UPS and Diesel Generator
+    engine.facilityComponents.set('ups_bench', {
+      id: 'ups_bench',
+      type: FacilityComponentType.UPS_BATTERY,
+      capacityKwh: 100,
+      currentChargeKwh: 100,
+      powerKw: 0.5,
+    });
+    engine.facilityComponents.set('gen_bench', {
+      id: 'gen_bench',
+      type: FacilityComponentType.DIESEL_GENERATOR,
+      outputPowerKw: 150,
+      fuelLiters: 500,
+      fuelBurnRatePerSec: 0.05,
+      isRunning: false,
+    });
+
+    // Trigger Blackout and Generator Start
+    engine.powerEngine.setGridBlackout(true);
+    engine.handleRemediationAction({ actionType: 'START_DIESEL_GENERATOR' });
+
+    const startTime = performance.now();
+    const TOTAL_TICKS = 10000;
+
+    for (let tick = 0; tick < TOTAL_TICKS; tick++) {
+      engine.tick(1 / 60);
+    }
+
+    const durationMs = performance.now() - startTime;
+    const gen = engine.facilityComponents.get('gen_bench');
+    const profile = engine.economicEngine.getProfile();
+
+    console.log(`\n[BENCHMARK] Blackout & Kafka 10,000 Ticks executed in ${durationMs.toFixed(2)}ms`);
+    console.log(`[BENCHMARK] Generator Status: ${gen.isRunning ? 'RUNNING' : 'STOPPED'}, Remaining Fuel: ${gen.fuelLiters.toFixed(2)}L`);
+    console.log(`[BENCHMARK] Facility Powered: ${engine.powerEngine.isFacilityPowered}`);
+
+    assert.strictEqual(engine.simulationTickCount, TOTAL_TICKS);
+    assert.strictEqual(gen.isRunning, true);
+    assert.strictEqual(engine.powerEngine.isFacilityPowered, true);
+    assert.strictEqual(Number.isInteger(profile.cashMicroCents), true);
+  });
 });
+

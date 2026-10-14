@@ -100,6 +100,28 @@ export class FacilityScene extends Phaser.Scene {
       // Cold airflow halo
       this.componentGraphics.fillStyle(0x38bdf8, 0.15);
       this.componentGraphics.fillCircle(screen.x, screen.y, 40);
+    } else if (comp.type === 'UPS_BATTERY') {
+      // Green/amber battery reserve bank
+      this.drawIsoPrism(screen.x, screen.y, 35, 0x14532d, 0x4ade80);
+      // Battery charge level indicator
+      const chargePct = Math.min(1.0, (comp.currentChargeKwh || 50) / (comp.capacityKwh || 50));
+      this.componentGraphics.fillStyle(chargePct > 0.3 ? 0x22c55e : 0xef4444, 1);
+      this.componentGraphics.fillRect(screen.x - 12, screen.y - 45, 24 * chargePct, 3);
+    } else if (comp.type === 'DIESEL_GENERATOR') {
+      // Industrial backup diesel generator
+      this.drawIsoPrism(screen.x, screen.y, 45, 0x78350f, 0xf97316);
+      if (comp.isRunning) {
+        // Diesel exhaust smoke particles
+        this.componentGraphics.fillStyle(0x475569, 0.6);
+        this.componentGraphics.fillCircle(screen.x + 8, screen.y - 60, 6);
+        this.componentGraphics.fillCircle(screen.x + 12, screen.y - 70, 9);
+      }
+    } else if (comp.type === 'PDU_3PHASE') {
+      // Yellow electrical distribution breaker
+      this.drawIsoPrism(screen.x, screen.y, 30, 0x713f12, 0xfacc15);
+    } else if (comp.type === 'AISLE_CONTAINMENT') {
+      // Tempered glass cold-aisle partition
+      this.drawIsoPrism(screen.x, screen.y, 55, 0x0f172a, 0x94a3b8);
     } else {
       // Overheating hotspot warning ring
       if (tempC >= 45.0) {
