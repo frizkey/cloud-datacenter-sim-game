@@ -15,6 +15,14 @@ export class FacilityScene extends Phaser.Scene {
     this.isPlacing = false;
     this.placementType = null;
     this.isDraggingFromDrawer = false;
+
+    // Explicit camera pan state to prevent canvas jumping
+    this.isPanning = false;
+    this.panOriginX = 0;
+    this.panOriginY = 0;
+    this.camOriginX = 0;
+    this.camOriginY = 0;
+    this.justPlaced = false;
   }
 
   create() {
@@ -58,9 +66,11 @@ export class FacilityScene extends Phaser.Scene {
         return; // SUPPRESS CAMERA PAN WHILE PLACING COMPONENT
       }
 
-      if (pointer.isDown && !pointer.wasTouchHandled) {
-        this.cameras.main.scrollX -= (pointer.x - pointer.prevPosition.x) / this.cameras.main.zoom;
-        this.cameras.main.scrollY -= (pointer.y - pointer.prevPosition.y) / this.cameras.main.zoom;
+      if (this.isPanning && !this.justPlaced) {
+        const dx = pointer.x - this.panOriginX;
+        const dy = pointer.y - this.panOriginY;
+        this.cameras.main.scrollX = this.camOriginX - dx / this.cameras.main.zoom;
+        this.cameras.main.scrollY = this.camOriginY - dy / this.cameras.main.zoom;
       }
     });
 
@@ -70,8 +80,8 @@ export class FacilityScene extends Phaser.Scene {
       this.cameras.main.setZoom(newZoom);
     });
 
-    // Handle click to place
-    this.input.on('pointerdown', (pointer) => {
+    // Handle click to place or camera pan start
+    this.input.on('pointerdown', (pointer, currentlyOver) => {
       if (this.isPlacing) {
         if (pointer.button === 2) {
           this.exitPlacementMode();
@@ -80,8 +90,19 @@ export class FacilityScene extends Phaser.Scene {
         const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
         const placed = this.tryPlaceFacilityAt(this.placementType, worldPoint.x, worldPoint.y);
         if (placed) {
+          this.justPlaced = true;
           this.exitPlacementMode();
+          setTimeout(() => { this.justPlaced = false; }, 250);
         }
+        return;
+      }
+
+      if (!currentlyOver || currentlyOver.length === 0) {
+        this.isPanning = true;
+        this.panOriginX = pointer.x;
+        this.panOriginY = pointer.y;
+        this.camOriginX = this.cameras.main.scrollX;
+        this.camOriginY = this.cameras.main.scrollY;
       }
     });
 
@@ -93,12 +114,16 @@ export class FacilityScene extends Phaser.Scene {
           const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
           const placed = this.tryPlaceFacilityAt(this.placementType, worldPoint.x, worldPoint.y);
           if (placed) {
+            this.justPlaced = true;
             this.exitPlacementMode();
+            setTimeout(() => { this.justPlaced = false; }, 250);
           }
         } else {
           this.isDraggingFromDrawer = false;
         }
       }
+
+      this.isPanning = false;
     });
 
     this.escKeyHandler = (e) => {
@@ -311,7 +336,6 @@ export class FacilityScene extends Phaser.Scene {
   tryPlaceFacilityAt(type, worldX, worldY) {
     const cell = screenToGridCell(worldX, worldY, this.originX, this.originY, 64, 32);
     if (cell.gridX < 0 || cell.gridX >= 12 || cell.gridY < 0 || cell.gridY >= 12) {
-      this.cameras.main.shake(100, 0.003);
       return false;
     }
 
@@ -320,7 +344,6 @@ export class FacilityScene extends Phaser.Scene {
     const currentCash = this.currentSnapshot?.economicProfile?.cashMicroCents ?? Infinity;
 
     if (buyCost > currentCash) {
-      this.cameras.main.shake(150, 0.005);
       globalEventBus.emit('INSUFFICIENT_FUNDS', { required: buyCost, available: currentCash });
       return false;
     }

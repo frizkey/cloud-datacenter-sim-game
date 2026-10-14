@@ -190,6 +190,9 @@ export class SimulationEngine {
       t === NodeType.MESSAGE_BROKER ||
       t === NodeType.OBJECT_STORAGE;
 
+    const dist = (a, b) => Math.hypot(a.gridX - b.gridX, a.gridY - b.gridY);
+    const sortByDist = (list) => [...list].sort((a, b) => dist(node, a) - dist(node, b));
+
     const safeConnect = (sourceId, targetId) => {
       const conn = this.connectNodes(sourceId, targetId);
       if (conn && !createdConnections.includes(conn)) {
@@ -198,69 +201,75 @@ export class SimulationEngine {
     };
 
     if (isCompute(node.type)) {
-      // Connect from upstream gateways
-      const gateways = nodesList.filter((n) => isGateway(n.type));
+      // Connect from nearest upstream gateway
+      const gateways = sortByDist(nodesList.filter((n) => isGateway(n.type)));
       if (gateways.length > 0) {
-        for (const gw of gateways) safeConnect(gw.id, node.id);
+        safeConnect(gateways[0].id, node.id);
       } else {
-        // Connect directly from ingress or edge
-        const upstreams = nodesList.filter((n) => isEdge(n.type) || isIngress(n.type));
-        for (const up of upstreams) safeConnect(up.id, node.id);
+        const upstreams = sortByDist(nodesList.filter((n) => isEdge(n.type) || isIngress(n.type)));
+        if (upstreams.length > 0) safeConnect(upstreams[0].id, node.id);
       }
 
-      // Connect to downstream data/state services
-      const dataNodes = nodesList.filter((n) => isData(n.type));
-      for (const d of dataNodes) safeConnect(node.id, d.id);
+      // Connect to nearest downstream data/state service (DB or Cache)
+      const dataNodes = sortByDist(nodesList.filter((n) => isData(n.type)));
+      if (dataNodes.length > 0) {
+        safeConnect(node.id, dataNodes[0].id);
+        // If there's another data node within close proximity (<= 4 tiles), also connect
+        if (dataNodes.length > 1 && dist(node, dataNodes[1]) <= 4) {
+          safeConnect(node.id, dataNodes[1].id);
+        }
+      }
     } else if (isGateway(node.type)) {
-      // Connect from ingress or edge
-      const upstreams = nodesList.filter((n) => isEdge(n.type) || isIngress(n.type));
-      for (const up of upstreams) safeConnect(up.id, node.id);
+      // Connect from nearest ingress or edge
+      const upstreams = sortByDist(nodesList.filter((n) => isEdge(n.type) || isIngress(n.type)));
+      if (upstreams.length > 0) safeConnect(upstreams[0].id, node.id);
 
-      // Connect to downstream compute
-      const computes = nodesList.filter((n) => isCompute(n.type));
+      // Connect to up to 2 nearest downstream computes
+      const computes = sortByDist(nodesList.filter((n) => isCompute(n.type)));
       if (computes.length > 0) {
-        for (const c of computes) safeConnect(node.id, c.id);
+        safeConnect(node.id, computes[0].id);
+        if (computes.length > 1 && dist(node, computes[1]) <= 6) {
+          safeConnect(node.id, computes[1].id);
+        }
       } else {
-        // If no computes, connect directly to data
-        const dataNodes = nodesList.filter((n) => isData(n.type));
-        for (const d of dataNodes) safeConnect(node.id, d.id);
+        const dataNodes = sortByDist(nodesList.filter((n) => isData(n.type)));
+        if (dataNodes.length > 0) safeConnect(node.id, dataNodes[0].id);
       }
     } else if (isData(node.type)) {
-      // Connect from compute nodes
-      const computes = nodesList.filter((n) => isCompute(n.type));
+      // Connect from nearest compute node
+      const computes = sortByDist(nodesList.filter((n) => isCompute(n.type)));
       if (computes.length > 0) {
-        for (const c of computes) safeConnect(c.id, node.id);
+        safeConnect(computes[0].id, node.id);
       } else {
-        // If no compute, connect from gateways
-        const gateways = nodesList.filter((n) => isGateway(n.type));
-        for (const gw of gateways) safeConnect(gw.id, node.id);
+        const gateways = sortByDist(nodesList.filter((n) => isGateway(n.type)));
+        if (gateways.length > 0) safeConnect(gateways[0].id, node.id);
       }
     } else if (isEdge(node.type)) {
-      // Connect from ingress
-      const ingresses = nodesList.filter((n) => isIngress(n.type));
-      for (const ing of ingresses) safeConnect(ing.id, node.id);
+      // Edge security/CDN node: Splice between nearest Ingress and nearest Gateway
+      const ingresses = sortByDist(nodesList.filter((n) => isIngress(n.type)));
+      const gateways = sortByDist(nodesList.filter((n) => isGateway(n.type)));
 
-      // Connect to gateways or compute
-      const gateways = nodesList.filter((n) => isGateway(n.type));
+      if (ingresses.length > 0) {
+        safeConnect(ingresses[0].id, node.id);
+      }
       if (gateways.length > 0) {
-        for (const gw of gateways) safeConnect(node.id, gw.id);
-      } else {
-        const computes = nodesList.filter((n) => isCompute(n.type));
-        for (const c of computes) safeConnect(node.id, c.id);
+        safeConnect(node.id, gateways[0].id);
+      }
+
+      // If ingress was directly connected to gateway, splice by removing direct link
+      if (ingresses.length > 0 && gateways.length > 0) {
+        for (const [connId, conn] of this.connections.entries()) {
+          if (conn.sourceNodeId === ingresses[0].id && conn.targetNodeId === gateways[0].id) {
+            this.disconnectNodes(connId);
+            break;
+          }
+        }
       }
     } else if (isIngress(node.type)) {
-      // Connect to edge nodes, or gateways, or compute
-      const edges = nodesList.filter((n) => isEdge(n.type));
-      if (edges.length > 0) {
-        for (const ed of edges) safeConnect(node.id, ed.id);
-      } else {
-        const gateways = nodesList.filter((n) => isGateway(n.type));
-        if (gateways.length > 0) {
-          for (const gw of gateways) safeConnect(node.id, gw.id);
-        } else {
-          const computes = nodesList.filter((n) => isCompute(n.type));
-          for (const c of computes) safeConnect(node.id, c.id);
-        }
+      // Connect to nearest edge node or gateway
+      const targets = sortByDist(nodesList.filter((n) => isEdge(n.type) || isGateway(n.type)));
+      if (targets.length > 0) {
+        safeConnect(node.id, targets[0].id);
       }
     }
 

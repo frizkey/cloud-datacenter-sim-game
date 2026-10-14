@@ -25,6 +25,18 @@ export class TopologyScene extends Phaser.Scene {
     this.placementType = null;
     this.placementGhost = null;
     this.isDraggingFromDrawer = false;
+
+    // Explicit camera pan state to prevent canvas jumping
+    this.isPanning = false;
+    this.panOriginX = 0;
+    this.panOriginY = 0;
+    this.camOriginX = 0;
+    this.camOriginY = 0;
+    this.justPlaced = false;
+
+    // Cable & node selection state
+    this.selectedNodeId = null;
+    this.selectedConnectionId = null;
   }
 
   create() {
@@ -40,6 +52,9 @@ export class TopologyScene extends Phaser.Scene {
     this.nodeContainer = this.add.container(0, 0);
 
     this.drawBackgroundGrid();
+
+    // Center camera on starter topology
+    this.cameras.main.centerOn(520, 320);
 
     // Subscribe to engine snapshots
     this.unsubscribeSnapshot = globalEventBus.on(EngineEventTypes.STATE_SNAPSHOT_EMITTED, (evt) => {
@@ -68,6 +83,22 @@ export class TopologyScene extends Phaser.Scene {
       this.exitPlacementMode();
     });
 
+    // Subscribe to selection events to highlight cables
+    this.unsubscribeNodeSelected = globalEventBus.on('NODE_SELECTED', (evt) => {
+      this.selectedNodeId = evt.payload?.node?.id || null;
+      this.selectedConnectionId = evt.payload?.connection?.id || null;
+    });
+
+    this.unsubscribeConnSelected = globalEventBus.on('CONNECTION_SELECTED', (evt) => {
+      this.selectedConnectionId = evt.payload?.connection?.id || null;
+      this.selectedNodeId = null;
+    });
+
+    this.unsubscribeNodeDeselected = globalEventBus.on('NODE_DESELECTED', () => {
+      this.selectedNodeId = null;
+      this.selectedConnectionId = null;
+    });
+
     // Setup HTML5 canvas drag & drop
     this.setupCanvasDrop();
 
@@ -78,9 +109,11 @@ export class TopologyScene extends Phaser.Scene {
         return; // SUPPRESS CAMERA PAN WHILE PLACING/DRAGGING COMPONENT
       }
 
-      if (pointer.isDown && !pointer.wasTouchHandled) {
-        this.cameras.main.scrollX -= (pointer.x - pointer.prevPosition.x) / this.cameras.main.zoom;
-        this.cameras.main.scrollY -= (pointer.y - pointer.prevPosition.y) / this.cameras.main.zoom;
+      if (this.isPanning && !this.justPlaced) {
+        const dx = pointer.x - this.panOriginX;
+        const dy = pointer.y - this.panOriginY;
+        this.cameras.main.scrollX = this.camOriginX - dx / this.cameras.main.zoom;
+        this.cameras.main.scrollY = this.camOriginY - dy / this.cameras.main.zoom;
       }
     });
 
@@ -90,7 +123,7 @@ export class TopologyScene extends Phaser.Scene {
       this.cameras.main.setZoom(newZoom);
     });
 
-    // Handle click to place or empty canvas deselect
+    // Handle click to place or empty canvas deselect / pan start
     this.input.on('pointerdown', (pointer, currentlyOver) => {
       if (this.isPlacing) {
         if (pointer.button === 2) {
@@ -103,13 +136,31 @@ export class TopologyScene extends Phaser.Scene {
         const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
         const placed = this.tryPlaceNodeAt(this.placementType, worldPoint.x, worldPoint.y);
         if (placed) {
+          this.justPlaced = true;
           this.exitPlacementMode();
+          setTimeout(() => { this.justPlaced = false; }, 250);
         }
+        return;
+      }
+
+      // Check if user clicked on a network link / cable
+      const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      const clickedConn = this.findConnectionNear(worldPoint.x, worldPoint.y);
+      if (clickedConn) {
+        this.selectedConnectionId = clickedConn.id;
+        this.selectedNodeId = null;
+        globalEventBus.emit('CONNECTION_SELECTED', { connection: clickedConn });
         return;
       }
 
       if (!currentlyOver || currentlyOver.length === 0) {
         globalEventBus.emit('NODE_DESELECTED');
+        // Start camera pan only on empty space
+        this.isPanning = true;
+        this.panOriginX = pointer.x;
+        this.panOriginY = pointer.y;
+        this.camOriginX = this.cameras.main.scrollX;
+        this.camOriginY = this.cameras.main.scrollY;
       }
     });
 
@@ -121,13 +172,17 @@ export class TopologyScene extends Phaser.Scene {
           const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
           const placed = this.tryPlaceNodeAt(this.placementType, worldPoint.x, worldPoint.y);
           if (placed) {
+            this.justPlaced = true;
             this.exitPlacementMode();
+            setTimeout(() => { this.justPlaced = false; }, 250);
           }
         } else {
           // Stay in placement mode so user can click to place
           this.isDraggingFromDrawer = false;
         }
       }
+
+      this.isPanning = false;
     });
 
     // Escape key cancels placement mode
@@ -203,7 +258,11 @@ export class TopologyScene extends Phaser.Scene {
         container.setInteractive({ useHandCursor: true });
 
         container.on('pointerdown', () => {
-          globalEventBus.emit('NODE_SELECTED', { node });
+          if (this.isPlacing) return;
+          this.selectedNodeId = node.id;
+          this.selectedConnectionId = null;
+          const liveNode = this.currentSnapshot?.nodes?.find((n) => n.id === node.id) || node;
+          globalEventBus.emit('NODE_SELECTED', { node: liveNode });
         });
 
         visual = { container, bg, icon, label, rpsLabel, nodeData: node };
@@ -217,9 +276,12 @@ export class TopologyScene extends Phaser.Scene {
 
       // Draw node card background
       visual.bg.clear();
-      const borderColor = node.status === 'CRITICAL' ? 0xef4444 : (node.colorHex || 0x3b82f6);
+      const isNodeSelected = this.selectedNodeId === node.id;
+      const borderColor = isNodeSelected
+        ? 0x38bdf8
+        : (node.status === 'CRITICAL' ? 0xef4444 : (node.colorHex || 0x3b82f6));
       visual.bg.fillStyle(0x0f172a, 0.85);
-      visual.bg.lineStyle(2, borderColor, 0.9);
+      visual.bg.lineStyle(isNodeSelected ? 3 : 2, borderColor, 0.9);
       visual.bg.fillRoundedRect(-36, -36, 72, 72, 10);
       visual.bg.strokeRoundedRect(-36, -36, 72, 72, 10);
 
@@ -246,14 +308,21 @@ export class TopologyScene extends Phaser.Scene {
       const tgt = nodeCoords.get(conn.targetNodeId);
       if (!src || !tgt) continue;
 
-      // Draw sleek orthogonal or direct network cable
-      this.cableGraphics.lineStyle(2, 0x3b82f6, 0.6);
+      const isSelected = this.selectedConnectionId === conn.id ||
+        (this.selectedNodeId && (conn.sourceNodeId === this.selectedNodeId || conn.targetNodeId === this.selectedNodeId));
+
+      // Draw sleek network cable with highlight if selected or connected to selected node
+      if (isSelected) {
+        this.cableGraphics.lineStyle(3, 0x38bdf8, 1.0);
+      } else {
+        this.cableGraphics.lineStyle(2, 0x3b82f6, 0.6);
+      }
       this.cableGraphics.lineBetween(src.x, src.y, tgt.x, tgt.y);
 
       // Port dots
-      this.cableGraphics.fillStyle(0x38bdf8, 1);
-      this.cableGraphics.fillCircle(src.x, src.y, 4);
-      this.cableGraphics.fillCircle(tgt.x, tgt.y, 4);
+      this.cableGraphics.fillStyle(isSelected ? 0xffffff : 0x38bdf8, 1);
+      this.cableGraphics.fillCircle(src.x, src.y, isSelected ? 5 : 4);
+      this.cableGraphics.fillCircle(tgt.x, tgt.y, isSelected ? 5 : 4);
     }
   }
 
@@ -512,6 +581,9 @@ export class TopologyScene extends Phaser.Scene {
     if (this.unsubscribeDragInitiated) this.unsubscribeDragInitiated();
     if (this.unsubscribeStartPlacement) this.unsubscribeStartPlacement();
     if (this.unsubscribeCancelPlacement) this.unsubscribeCancelPlacement();
+    if (this.unsubscribeNodeSelected) this.unsubscribeNodeSelected();
+    if (this.unsubscribeConnSelected) this.unsubscribeConnSelected();
+    if (this.unsubscribeNodeDeselected) this.unsubscribeNodeDeselected();
     if (this.escKeyHandler) window.removeEventListener('keydown', this.escKeyHandler);
 
     const canvas = this.game?.canvas;
@@ -566,8 +638,14 @@ export class TopologyScene extends Phaser.Scene {
           const screenX = (e.clientX - rect.left) * (this.scale.width / rect.width);
           const screenY = (e.clientY - rect.top) * (this.scale.height / rect.height);
           const worldPoint = this.cameras.main.getWorldPoint(screenX, screenY);
-          this.tryPlaceNodeAt(type, worldPoint.x, worldPoint.y);
-          this.exitPlacementMode();
+          const placed = this.tryPlaceNodeAt(type, worldPoint.x, worldPoint.y);
+          if (placed) {
+            this.justPlaced = true;
+            this.exitPlacementMode();
+            setTimeout(() => { this.justPlaced = false; }, 250);
+          } else {
+            this.exitPlacementMode();
+          }
         }
       } catch (err) {
         console.error('Failed to handle canvas drop:', err);
@@ -701,7 +779,6 @@ export class TopologyScene extends Phaser.Scene {
     const validation = this.gridSnapper.validatePlacement(snapped.gridX, snapped.gridY, existingNodes);
 
     if (!validation.valid) {
-      this.cameras.main.shake(100, 0.003);
       return false;
     }
 
@@ -710,7 +787,6 @@ export class TopologyScene extends Phaser.Scene {
     const currentCash = this.currentSnapshot?.economicProfile?.cashMicroCents ?? Infinity;
 
     if (buyCost > currentCash) {
-      this.cameras.main.shake(150, 0.005);
       globalEventBus.emit('INSUFFICIENT_FUNDS', { required: buyCost, available: currentCash });
       return false;
     }
@@ -761,6 +837,46 @@ export class TopologyScene extends Phaser.Scene {
       case NodeType.OBJECT_STORAGE: return '📦';
       default: return '📦';
     }
+  }
+
+  findConnectionNear(worldX, worldY) {
+    if (!this.currentConnections || !this.currentSnapshot?.nodes) return null;
+
+    const nodeCoords = new Map();
+    const TILE_PX = 80;
+    for (const n of this.currentSnapshot.nodes) {
+      nodeCoords.set(n.id, { x: n.gridX * TILE_PX, y: n.gridY * TILE_PX, node: n });
+    }
+
+    const HIT_RADIUS_SQ = 22 * 22; // 22px hit target
+    let closestConn = null;
+    let closestDistSq = Infinity;
+
+    for (const conn of this.currentConnections) {
+      const src = nodeCoords.get(conn.sourceNodeId);
+      const tgt = nodeCoords.get(conn.targetNodeId);
+      if (!src || !tgt) continue;
+
+      const distSq = this.distToSegmentSquared(worldX, worldY, src.x, src.y, tgt.x, tgt.y);
+      if (distSq <= HIT_RADIUS_SQ && distSq < closestDistSq) {
+        closestDistSq = distSq;
+        closestConn = {
+          ...conn,
+          sourceNode: src.node,
+          targetNode: tgt.node,
+        };
+      }
+    }
+
+    return closestConn;
+  }
+
+  distToSegmentSquared(px, py, x1, y1, x2, y2) {
+    const l2 = (x2 - x1) ** 2 + (y2 - y1) ** 2;
+    if (l2 === 0) return (px - x1) ** 2 + (py - y1) ** 2;
+    let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return (px - (x1 + t * (x2 - x1))) ** 2 + (py - (y1 + t * (y2 - y1))) ** 2;
   }
 }
 

@@ -291,12 +291,25 @@ const inspector = new NodeInspector({
     }
     globalMobileLifecycle.unregisterActiveModal('inspector');
   },
+  onDisconnectLink: (connId) => {
+    simulationEngine.disconnectNodes(connId);
+  },
   onOpen: () => {
     globalMobileLifecycle.registerActiveModal('inspector', inspector);
   },
   onClose: () => {
     globalMobileLifecycle.unregisterActiveModal('inspector');
   },
+});
+
+// Wire link disconnection event
+globalEventBus.on('DISCONNECT_CONNECTION', (evt) => {
+  const { connectionId } = evt.payload || evt;
+  if (connectionId) {
+    simulationEngine.disconnectNodes(connectionId);
+    globalAudioManager.playNodeClick();
+    globalHapticsManager.lightTap();
+  }
 });
 
 // Mount 30-Second Guided FTUE Tutorial
