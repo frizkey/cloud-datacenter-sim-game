@@ -16,7 +16,12 @@ Players act as a **Lead Cloud Solutions Architect & Principal SRE**, balancing f
 
 ---
 
-## 2. User Scenarios & Testing *(Prioritized User Journeys)*
+## Clarifications
+
+### Session 2026-10-14
+- Q: What is the target deployment and distribution matrix for testing and production releases? → A: Deploy as a containerized web game to Coolify for rapid testing, continuous staging, and live playtesting; package as a standalone native APK/AAB via Capacitor for official Android release; and provide an iOS deployment path (PWA home-screen runtime + GitHub Actions macOS CI pipeline for native IPA packaging).
+
+---
 
 ### User Story 1 - Real-Time Request Lifecycle & Headless Economic Loop (Priority: P1)
 
@@ -123,6 +128,9 @@ As a new or returning player, I want to experience guided emergency triage event
 - **FR-013**: System MUST provide a guided 30-second first-time user experience (FTUE) that walks the player through troubleshooting an initial traffic bottleneck.
 - **FR-014**: System MUST serialize complete game state to local persistent storage on every significant state change and whenever the application transitions to the background.
 - **FR-015**: System MUST simulate offline time deltas upon application resume, calculating accumulated revenue and facility state up to a maximum cap (8 hours).
+- **FR-016**: System MUST provide a multi-stage Docker container build configured for automated deployment to Coolify for web-based testing, continuous staging, and live preview.
+- **FR-017**: System MUST provide an Android release packaging configuration via Capacitor that produces standalone `.apk` packages runnable on Android 8.0+ devices.
+- **FR-018**: System MUST support iOS web execution via full-screen Progressive Web App (PWA) manifest headers and provide a Capacitor iOS project structure compatible with remote macOS CI runners.
 
 ---
 
@@ -151,6 +159,8 @@ As a new or returning player, I want to experience guided emergency triage event
 - **SC-004**: Interactive touch targets across all mobile menus, drawers, and buttons meet or exceed the minimum size threshold of **$48 \times 48\text{ dp}$**, resulting in zero reported mis-click failures during incident triage testing.
 - **SC-005**: All mathematical models and resource flow equations achieve **$100\%$ automated verification** across a continuous **10,000-tick headless simulation stress test** with zero floating-point accumulation drift.
 - **SC-006**: State persistence and restoration completes in under **500 milliseconds**, enabling seamless application pause and resume across mobile micro-sessions.
+- **SC-007**: Web application container builds and deploys to Coolify in under **2 minutes**, achieving HTTP 200 OK preview readiness.
+- **SC-008**: Android APK packages cleanly via Gradle CLI and boots to an interactive title screen in under **2 seconds** on target test devices.
 
 ---
 

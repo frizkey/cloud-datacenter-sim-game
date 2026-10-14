@@ -26,11 +26,12 @@
 
 - [x] All functional requirements have clear acceptance criteria
 - [x] User scenarios cover primary flows (US1: Economic loop, US2: Dual-view, US3: Mobile touch, US4: Thermodynamics/PUE, US5: Incident triage/FTUE)
-- [x] Feature meets measurable outcomes defined in Success Criteria (SC-001 through SC-006)
+- [x] Feature meets measurable outcomes defined in Success Criteria (SC-001 through SC-008)
 - [x] No implementation details leak into specification
 
 ## Validation Notes
 
 - **Initial Validation Date**: 2026-10-14
+- **Clarification Session**: 2026-10-14 — Integrated multi-target deployment matrix (Coolify web staging container, Android Capacitor APK/AAB release, and iOS PWA/CI strategy; added FR-016-018, SC-007-008).
 - **Result**: ALL PASS (16/16 checks satisfied).
 - **Next Phase**: Ready for `/speckit-plan` (architecture planning, research, data model, contracts).
