@@ -6,7 +6,7 @@
 - **Repo Root:** `/home/arie/labs/cloud-datacenter-sim-game`
 - **Paseo Project ID:** `prj_65c105297a762177` (`cloud-datacenter-sim-game`)
 - **Active Feature:** `001-core-sim-mobile`
-- **Latest Commit:** `928f039`
+- **Latest Commit:** `bb8ec03`
 
 ---
 
@@ -26,13 +26,18 @@
   - Completed quality checklist at [specs/001-core-sim-mobile/checklists/requirements.md](file:///home/arie/labs/cloud-datacenter-sim-game/specs/001-core-sim-mobile/checklists/requirements.md) (16/16 checks passing).
 - **Phase 1 Implementation Planning (`speckit-plan`) Completed:**
   - Generated [specs/001-core-sim-mobile/plan.md](file:///home/arie/labs/cloud-datacenter-sim-game/specs/001-core-sim-mobile/plan.md) with technical context, constitution gates check (all PASS), and concrete source code structure.
-  - Generated [specs/001-core-sim-mobile/research.md](file:///home/arie/labs/cloud-datacenter-sim-game/specs/001-core-sim-mobile/research.md) documenting technical decisions for headless simulation, Phaser 4 dual-scene rendering, touch gesture FSM, Coolify Docker multi-stage deployment, and Capacitor Android/iOS packaging.
-  - Generated [specs/001-core-sim-mobile/data-model.md](file:///home/arie/labs/cloud-datacenter-sim-game/specs/001-core-sim-mobile/data-model.md) defining domain entities (`InfrastructureNode`, `NetworkConnection`, `FacilityComponent`, `TrafficPacket`, `IncidentEvent`, `CompanyEconomicProfile`).
-  - Generated interface contracts:
-    - [specs/001-core-sim-mobile/contracts/engine-event-contract.json](file:///home/arie/labs/cloud-datacenter-sim-game/specs/001-core-sim-mobile/contracts/engine-event-contract.json) (Pub/Sub EventBus schema)
-    - [specs/001-core-sim-mobile/contracts/save-state-schema.json](file:///home/arie/labs/cloud-datacenter-sim-game/specs/001-core-sim-mobile/contracts/save-state-schema.json) (IndexedDB state persistence schema)
-  - Generated [specs/001-core-sim-mobile/quickstart.md](file:///home/arie/labs/cloud-datacenter-sim-game/specs/001-core-sim-mobile/quickstart.md) with runnable verification and deployment scenarios.
-  - Recorded persistent facts in GBrain memory (#293, #294, #295, #296, #297, #298, #299).
+  - Generated [specs/001-core-sim-mobile/research.md](file:///home/arie/labs/cloud-datacenter-sim-game/specs/001-core-sim-mobile/research.md), [specs/001-core-sim-mobile/data-model.md](file:///home/arie/labs/cloud-datacenter-sim-game/specs/001-core-sim-mobile/data-model.md), [specs/001-core-sim-mobile/contracts/](file:///home/arie/labs/cloud-datacenter-sim-game/specs/001-core-sim-mobile/contracts), and [specs/001-core-sim-mobile/quickstart.md](file:///home/arie/labs/cloud-datacenter-sim-game/specs/001-core-sim-mobile/quickstart.md).
+- **Phase 1 Task Generation (`speckit-tasks`) Completed:**
+  - Generated [specs/001-core-sim-mobile/tasks.md](file:///home/arie/labs/cloud-datacenter-sim-game/specs/001-core-sim-mobile/tasks.md) containing 44 dependency-ordered TDD tasks organized across 8 implementation phases:
+    - Phase 1: Setup (T001 - T005) - Directory layout, Dockerfile for Coolify, Capacitor configs, EventBus.
+    - Phase 2: Foundational (T006 - T011) - EventBus tests, IsoMath, ParticlePool, StatePersistence.
+    - Phase 3: User Story 1 MVP (T012 - T018) - TrafficEngine, EconomicEngine, SimulationEngine 60 ticks/s loop.
+    - Phase 4: User Story 2 (T019 - T023) - TopologyScene 2D, FacilityScene 2.5D, CockpitHUD view toggle pill.
+    - Phase 5: User Story 3 (T024 - T029) - MobileTouchFSM, BuildDrawer, snap-to-grid, cable routing, safe area insets.
+    - Phase 6: User Story 4 (T030 - T033) - ThermalEngine (BTU, CFM cooling, PUE ratio, thermal throttling).
+    - Phase 7: User Story 5 (T034 - T038) - ChaosDirector, IncidentBar triage banner, 30s Day-1 FTUE tutorial.
+    - Phase 8: Polish & Packaging (T039 - T044) - 10,000-tick stress benchmark, Docker/Coolify build, Capacitor Android APK.
+  - Recorded persistent facts in GBrain memory (#293 through #300).
 - **Phaser 4 Starter Scaffold & Verification:**
   - Production build (`npm run build`) passing cleanly.
   - Automated Node.js unit tests in `tests/starter.test.js` passing (3/3).
@@ -42,7 +47,11 @@
 ---
 
 ## Next Steps & Handover (SpecKit SDD Workflow)
-1. **Actionable Task Breakdown (`speckit-tasks`):**
-   - Run `/speckit-tasks` to generate dependency-ordered TDD tasks organized by phase and user story in `specs/001-core-sim-mobile/tasks.md`.
-2. **Execute TDD Implementation (`speckit-implement`):**
-   - Implement Phase 1 headless simulation modules under `src/core/sim/`, verify unit tests, build mobile UI, and test Docker/Coolify deployment.
+1. **Execute Implementation (`speckit-implement`):**
+   - Begin Phase 1 (Setup) and Phase 2 (Foundational) implementation:
+     - T001: Create source directories.
+     - T002: Create multi-stage `Dockerfile` for Coolify deployment.
+     - T003: Initialize Capacitor mobile configuration `capacitor.config.json`.
+     - T004: Implement `EventBus` in `src/core/events/EventBus.js`.
+     - T005: Create domain constants in `src/core/sim/Constants.js`.
+     - T006 - T011: Foundational tests, `IsoMath.js`, `ParticlePool.js`, and `StatePersistence.js`.
