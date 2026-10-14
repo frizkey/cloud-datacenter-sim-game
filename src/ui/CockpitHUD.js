@@ -16,6 +16,7 @@ export class CockpitHUD {
     this.container = options.container || document.body;
     this.onViewChange = options.onViewChange || (() => {});
     this.onOpenModes = options.onOpenModes || (() => {});
+    this.onOpenSettings = options.onOpenSettings || (() => {});
     this.currentView = 'Topology';
 
     this.rootElement = null;
@@ -109,7 +110,7 @@ export class CockpitHUD {
     btnTopology.addEventListener('click', () => this.switchView('Topology'));
     btnFacility.addEventListener('click', () => this.switchView('Facility'));
     btnModes?.addEventListener('click', () => this.onOpenModes());
-    btnMenu?.addEventListener('click', () => this.onOpenModes());
+    btnMenu?.addEventListener('click', () => this.onOpenSettings());
   }
 
   switchView(viewName) {

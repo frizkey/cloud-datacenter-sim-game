@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AudioHapticsAndMobileContract",
+  "description": "Schemas and contracts for Procedural AudioManager, HapticsManager, and MobileLifecycle",
+  "definitions": {
+    "AudioSettings": {
+      "type": "object",
+      "required": ["masterVolume", "sfxVolume", "ambientVolume", "isMasterMuted", "isAmbientMuted", "isSfxMuted", "isHapticsEnabled"],
+      "properties": {
+        "masterVolume": { "type": "number", "minimum": 0, "maximum": 1 },
+        "sfxVolume": { "type": "number", "minimum": 0, "maximum": 1 },
+        "ambientVolume": { "type": "number", "minimum": 0, "maximum": 1 },
+        "isMasterMuted": { "type": "boolean" },
+        "isAmbientMuted": { "type": "boolean" },
+        "isSfxMuted": { "type": "boolean" },
+        "isHapticsEnabled": { "type": "boolean" }
+      }
+    },
+    "SfxType": {
+      "type": "string",
+      "enum": [
+        "UI_CLICK",
+        "NODE_PLACED",
+        "NODE_REMOVED",
+        "CABLE_CONNECTED",
+        "PACKET_SUCCESS",
+        "PACKET_DROP",
+        "INCIDENT_ALARM",
+        "INCIDENT_RESOLVED",
+        "LEVEL_VICTORY",
+        "LEVEL_DEFEAT"
+      ]
+    },
+    "HapticStyle": {
+      "type": "string",
+      "enum": ["LIGHT", "MEDIUM", "HEAVY", "WARNING", "SUCCESS"]
+    },
+    "EventBusEvents": {
+      "type": "object",
+      "properties": {
+        "AUDIO_SETTINGS_CHANGED": {
+          "type": "object",
+          "properties": {
+            "settings": { "$ref": "#/definitions/AudioSettings" }
+          },
+          "required": ["settings"]
+        },
+        "PLAY_SFX_REQUEST": {
+          "type": "object",
+          "properties": {
+            "sfxType": { "$ref": "#/definitions/SfxType" },
+            "volumeScale": { "type": "number", "minimum": 0, "maximum": 1 }
+          },
+          "required": ["sfxType"]
+        },
+        "TRIGGER_HAPTIC_REQUEST": {
+          "type": "object",
+          "properties": {
+            "style": { "$ref": "#/definitions/HapticStyle" }
+          },
+          "required": ["style"]
+        },
+        "APP_STATE_CHANGED": {
+          "type": "object",
+          "properties": {
+            "isActive": { "type": "boolean" }
+          },
+          "required": ["isActive"]
+        }
+      }
+    }
+  }
+}

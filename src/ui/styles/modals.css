@@ -317,3 +317,133 @@
   align-items: flex-start;
   gap: 8px;
 }
+
+/* Settings Modal Sliders & Toggles */
+.settings-section {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #38bdf8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+}
+
+.settings-label-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.settings-desc {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.settings-slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  max-width: 260px;
+}
+
+.settings-slider {
+  flex: 1;
+  height: 8px;
+  -webkit-appearance: none;
+  background: rgba(15, 23, 42, 0.8);
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+
+.settings-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+  cursor: pointer;
+}
+
+.settings-val-badge {
+  font-size: 13px;
+  font-weight: 700;
+  color: #38bdf8;
+  min-width: 40px;
+  text-align: right;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 52px;
+  height: 30px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(51, 65, 85, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transition: 0.25s;
+  border-radius: 30px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 22px;
+  width: 22px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.25s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+  background-color: #10b981;
+  border-color: #059669;
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(22px);
+}
+

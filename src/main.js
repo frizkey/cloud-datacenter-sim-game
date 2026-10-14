@@ -17,6 +17,10 @@ import { globalCareerStorage } from './core/storage/CareerStorage.js';
 import { ModeSelectModal } from './ui/modals/ModeSelectModal.js';
 import { MissionBriefingModal } from './ui/modals/MissionBriefingModal.js';
 import { MissionDebriefingModal } from './ui/modals/MissionDebriefingModal.js';
+import { SettingsModal } from './ui/modals/SettingsModal.js';
+import { globalAudioManager } from './core/audio/AudioManager.js';
+import { globalHapticsManager } from './core/haptics/HapticsManager.js';
+import { globalMobileLifecycle } from './core/mobile/MobileLifecycle.js';
 import { globalEventBus } from './core/events/EventBus.js';
 import { NodeType, FacilityComponentType, IncidentType, IncidentSeverity } from './core/sim/Constants.js';
 
@@ -85,19 +89,33 @@ const config = {
 
 const game = new Phaser.Game(config);
 
+// Connect Mobile Lifecycle to game mode manager and storage
+globalMobileLifecycle.gameModeManager = gameModeManager;
+globalMobileLifecycle.storage = globalCareerStorage;
+
+// Mount Settings Modal
+const settingsModal = new SettingsModal({
+  onClose: () => {
+    globalMobileLifecycle.unregisterActiveModal('settings');
+  },
+});
+
 // Mount Modals
 const modeSelectModal = new ModeSelectModal({
   onSelectLevel: (lvlNum) => {
     const levelConfig = getLevelConfig(lvlNum);
     if (levelConfig) {
       briefingModal.show(levelConfig);
+      globalMobileLifecycle.registerActiveModal('briefing', briefingModal);
     }
   },
   onStartSurvival: () => {
     gameModeManager.startSurvivalMode();
+    globalMobileLifecycle.unregisterActiveModal('modes');
   },
   onStartSandbox: () => {
     gameModeManager.startSandboxMode();
+    globalMobileLifecycle.unregisterActiveModal('modes');
   },
   careerStorage: globalCareerStorage,
 });
@@ -106,9 +124,11 @@ const briefingModal = new MissionBriefingModal({
   onDeploy: (levelConfig) => {
     gameModeManager.loadLevel(levelConfig.levelNumber);
     gameModeManager.startSession();
+    globalMobileLifecycle.unregisterActiveModal('briefing');
   },
   onBack: () => {
     modeSelectModal.show();
+    globalMobileLifecycle.registerActiveModal('modes', modeSelectModal);
   },
 });
 
@@ -117,20 +137,25 @@ const debriefingModal = new MissionDebriefingModal({
     const levelConfig = getLevelConfig(nextLevelNum);
     if (levelConfig) {
       briefingModal.show(levelConfig);
+      globalMobileLifecycle.registerActiveModal('briefing', briefingModal);
     } else {
       modeSelectModal.show();
+      globalMobileLifecycle.registerActiveModal('modes', modeSelectModal);
     }
   },
   onRetryLevel: (lvlNum) => {
     const levelConfig = getLevelConfig(lvlNum);
     if (levelConfig) {
       briefingModal.show(levelConfig);
+      globalMobileLifecycle.registerActiveModal('briefing', briefingModal);
     } else {
       modeSelectModal.show();
+      globalMobileLifecycle.registerActiveModal('modes', modeSelectModal);
     }
   },
   onLevelSelect: () => {
     modeSelectModal.show();
+    globalMobileLifecycle.registerActiveModal('modes', modeSelectModal);
   },
 });
 
@@ -143,6 +168,7 @@ globalEventBus.on('LEVEL_VICTORY', (evt) => {
     slaPercent: evt.payload.slaPercent,
     finalCashMicroCents: evt.payload.finalCashMicroCents,
   });
+  globalMobileLifecycle.registerActiveModal('debriefing', debriefingModal);
 });
 
 globalEventBus.on('LEVEL_DEFEAT', (evt) => {
@@ -153,6 +179,7 @@ globalEventBus.on('LEVEL_DEFEAT', (evt) => {
     elapsedSec: Math.floor(evt.payload.elapsedSec || 0),
     slaPercent: simulationEngine.economicEngine.slaReputationPercent,
   });
+  globalMobileLifecycle.registerActiveModal('debriefing', debriefingModal);
 });
 
 globalEventBus.on('SURVIVAL_GAME_OVER', (evt) => {
@@ -163,6 +190,7 @@ globalEventBus.on('SURVIVAL_GAME_OVER', (evt) => {
     elapsedSec: evt.payload.survivalTimeSec,
     slaPercent: simulationEngine.economicEngine.slaReputationPercent,
   });
+  globalMobileLifecycle.registerActiveModal('debriefing', debriefingModal);
 });
 
 // Mount CockpitHUD mobile navigation bar
@@ -179,9 +207,15 @@ const hud = new CockpitHUD({
         game.scene.start('FacilityScene');
       }
     }
+    globalAudioManager.startAmbientHum();
   },
   onOpenModes: () => {
     modeSelectModal.show();
+    globalMobileLifecycle.registerActiveModal('modes', modeSelectModal);
+  },
+  onOpenSettings: () => {
+    settingsModal.show();
+    globalMobileLifecycle.registerActiveModal('settings', settingsModal);
   },
 });
 
@@ -260,4 +294,13 @@ function simLoop(now) {
 
 requestAnimationFrame(simLoop);
 
-export { game, simulationEngine, gameModeManager, hud };
+export {
+  game,
+  simulationEngine,
+  gameModeManager,
+  hud,
+  globalAudioManager,
+  globalHapticsManager,
+  globalMobileLifecycle,
+  settingsModal,
+};
