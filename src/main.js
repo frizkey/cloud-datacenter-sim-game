@@ -265,6 +265,7 @@ const incidentBar = new IncidentBar({
 const inspector = new NodeInspector({
   onSellNode: (nodeId) => {
     simulationEngine.removeNode(nodeId);
+    globalMobileLifecycle.unregisterActiveModal('inspector');
   },
   onRestartNode: (nodeId) => {
     const node = simulationEngine.nodes.get(nodeId);
@@ -272,6 +273,13 @@ const inspector = new NodeInspector({
       node.status = 'HEALTHY';
       node.cpuUtilization = 0.1;
     }
+    globalMobileLifecycle.unregisterActiveModal('inspector');
+  },
+  onOpen: () => {
+    globalMobileLifecycle.registerActiveModal('inspector', inspector);
+  },
+  onClose: () => {
+    globalMobileLifecycle.unregisterActiveModal('inspector');
   },
 });
 
@@ -299,6 +307,7 @@ export {
   simulationEngine,
   gameModeManager,
   hud,
+  inspector,
   globalAudioManager,
   globalHapticsManager,
   globalMobileLifecycle,

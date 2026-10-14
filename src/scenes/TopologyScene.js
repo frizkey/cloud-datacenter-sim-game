@@ -51,6 +51,13 @@ export class TopologyScene extends Phaser.Scene {
       const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom - deltaY * 0.001, 0.5, 2.5);
       this.cameras.main.setZoom(newZoom);
     });
+
+    // Deselect active node when clicking on empty canvas space
+    this.input.on('pointerdown', (pointer, currentlyOver) => {
+      if (!currentlyOver || currentlyOver.length === 0) {
+        globalEventBus.emit('NODE_DESELECTED');
+      }
+    });
   }
 
   drawBackgroundGrid() {

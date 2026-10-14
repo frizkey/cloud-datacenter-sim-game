@@ -16,6 +16,8 @@ export class NodeInspector {
     this.container = options.container || document.body;
     this.onSellNode = options.onSellNode || (() => {});
     this.onRestartNode = options.onRestartNode || (() => {});
+    this.onOpen = options.onOpen || (() => {});
+    this.onClose = options.onClose || (() => {});
 
     this.activeNode = null;
     this.rootElement = null;
@@ -72,7 +74,11 @@ export class NodeInspector {
     const restartBtn = this.rootElement.querySelector('#inspect-restart-btn');
     const sellBtn = this.rootElement.querySelector('#inspect-sell-btn');
 
-    closeBtn.addEventListener('click', () => this.hide());
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.hide();
+    });
+
     restartBtn.addEventListener('click', () => {
       if (this.activeNode) {
         this.onRestartNode(this.activeNode.id);
@@ -86,17 +92,30 @@ export class NodeInspector {
         this.hide();
       }
     });
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && this.activeNode) {
+          this.hide();
+        }
+      });
+    }
   }
 
   bindEvents() {
     globalEventBus.on('NODE_SELECTED', (evt) => {
       this.showNode(evt.payload.node);
     });
+
+    globalEventBus.on('NODE_DESELECTED', () => {
+      this.hide();
+    });
   }
 
   showNode(node) {
     this.activeNode = node;
     this.rootElement.classList.remove('hidden');
+    this.onOpen(node);
 
     const titleEl = this.rootElement.querySelector('#inspect-title');
     const typeEl = this.rootElement.querySelector('#inspect-type');
@@ -135,6 +154,7 @@ export class NodeInspector {
   hide() {
     this.activeNode = null;
     this.rootElement.classList.add('hidden');
+    this.onClose();
   }
 
   destroy() {
