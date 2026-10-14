@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SaveStateSchema",
+  "description": "Schema for serializing and restoring complete simulation state to local persistent storage (IndexedDB / LocalStorage)",
+  "type": "object",
+  "required": [
+    "version",
+    "savedAtTimestamp",
+    "economicProfile",
+    "nodes",
+    "connections",
+    "facilityComponents",
+    "activeIncidents",
+    "simulationTickCount"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "enum": ["1.0.0"]
+    },
+    "savedAtTimestamp": {
+      "type": "integer",
+      "description": "Epoch millisecond when state was captured"
+    },
+    "simulationTickCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "economicProfile": {
+      "type": "object",
+      "required": ["cashMicroCents", "slaReputationPercent", "totalProcessedRequests", "totalFailedRequests"],
+      "properties": {
+        "cashMicroCents": { "type": "integer" },
+        "revenuePerSec": { "type": "integer" },
+        "opexPerSec": { "type": "integer" },
+        "slaReputationPercent": { "type": "number", "minimum": 0, "maximum": 100 },
+        "totalProcessedRequests": { "type": "integer", "minimum": 0 },
+        "totalFailedRequests": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "gridX", "gridY", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string" },
+          "gridX": { "type": "integer" },
+          "gridY": { "type": "integer" },
+          "status": { "type": "string" },
+          "cpuUtilization": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "connections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "sourceNodeId", "targetNodeId"],
+        "properties": {
+          "id": { "type": "string" },
+          "sourceNodeId": { "type": "string" },
+          "targetNodeId": { "type": "string" }
+        }
+      }
+    },
+    "facilityComponents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "isoX", "isoY", "temperatureCelsius"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string" },
+          "isoX": { "type": "integer" },
+          "isoY": { "type": "integer" },
+          "temperatureCelsius": { "type": "number" },
+          "isPowerActive": { "type": "boolean" }
+        }
+      }
+    },
+    "activeIncidents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "severity", "targetComponentId"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string" },
+          "severity": { "type": "string" },
+          "targetComponentId": { "type": "string" },
+          "timeElapsedSec": { "type": "number" }
+        }
+      }
+    }
+  }
+}

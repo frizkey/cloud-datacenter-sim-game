@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EngineEventContract",
+  "description": "Pub/Sub EventBus contract between headless simulation engine and presentation views",
+  "type": "object",
+  "required": ["eventId", "timestamp", "eventType", "payload"],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "timestamp": {
+      "type": "integer",
+      "description": "Epoch millisecond timestamp of the event"
+    },
+    "eventType": {
+      "type": "string",
+      "enum": [
+        "SIM_TICK",
+        "NODE_PLACED",
+        "NODE_REMOVED",
+        "NODES_CONNECTED",
+        "PACKET_SPAWNED",
+        "PACKET_PROCESSED",
+        "PACKET_DROPPED",
+        "INCIDENT_TRIGGERED",
+        "INCIDENT_MITIGATED",
+        "SLA_STATUS_CHANGED",
+        "FACILITY_HOTSPOT_ALERT",
+        "STATE_SNAPSHOT_EMITTED"
+      ]
+    },
+    "payload": {
+      "type": "object",
+      "description": "Event-specific data payload",
+      "additionalProperties": true
+    }
+  }
+}
