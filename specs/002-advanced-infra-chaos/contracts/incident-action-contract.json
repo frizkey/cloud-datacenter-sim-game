@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IncidentActionContract",
+  "description": "EventBus contract for interactive SRE incident remediation actions",
+  "type": "object",
+  "required": ["incidentId", "actionType", "timestamp"],
+  "properties": {
+    "incidentId": {
+      "type": "string",
+      "description": "Unique ID of the target incident being remediated"
+    },
+    "actionType": {
+      "type": "string",
+      "enum": [
+        "ENABLE_DDOS_SHIELD",
+        "DEPLOY_WAF_RULESET",
+        "TRIGGER_RAFT_QUORUM",
+        "START_DIESEL_GENERATOR",
+        "EMERGENCY_EXHAUST_PURGE",
+        "RESTART_NODE"
+      ]
+    },
+    "targetComponentId": {
+      "type": "string",
+      "description": "Optional component ID targeted by the action"
+    },
+    "timestamp": {
+      "type": "number",
+      "description": "Epoch millisecond timestamp of the remediation command"
+    }
+  },
+  "additionalProperties": false
+}
