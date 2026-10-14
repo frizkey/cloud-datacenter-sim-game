@@ -14,6 +14,8 @@ export class TopologyScene extends Phaser.Scene {
     this.nodesMap = new Map();
     this.connectionsMap = new Map();
     this.activePackets = [];
+    this.particles = [];
+    this.currentConnections = [];
   }
 
   create() {
@@ -22,7 +24,9 @@ export class TopologyScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#0b0f19');
     this.gridGraphics = this.add.graphics();
     this.cableGraphics = this.add.graphics();
+    this.cablePulseGraphics = this.add.graphics();
     this.packetGraphics = this.add.graphics();
+    this.sparkGraphics = this.add.graphics();
 
     this.nodeContainer = this.add.container(0, 0);
 
@@ -78,6 +82,7 @@ export class TopologyScene extends Phaser.Scene {
     if (!snapshot) return;
 
     this.currentSnapshot = snapshot;
+    this.currentConnections = snapshot.connections || [];
     this.renderNodes(snapshot.nodes);
     this.renderCables(snapshot.connections, snapshot.nodes);
   }
@@ -177,22 +182,71 @@ export class TopologyScene extends Phaser.Scene {
   }
 
   spawnVisualPacket(packet) {
-    const srcNode = this.nodesMap.get(packet.originNodeId);
-    if (!srcNode) return;
+    if (!packet || this.activePackets.length >= 75) return;
 
-    const particle = this.particlePool.acquire({
-      x: srcNode.container.x,
-      y: srcNode.container.y,
-      targetX: srcNode.container.x,
-      targetY: srcNode.container.y,
-      colorHex: packet.colorHex || 0x22c55e,
-      packetId: packet.id,
-      originNodeId: packet.originNodeId,
-    });
+    // Build multi-hop waypoints from packet.path
+    const pathNodeIds = packet.path && packet.path.length > 0 ? packet.path : [packet.originNodeId];
+    const waypoints = [];
 
-    if (particle) {
-      this.activePackets.push(particle);
+    for (const nodeId of pathNodeIds) {
+      const visual = this.nodesMap.get(nodeId);
+      if (visual && visual.container) {
+        waypoints.push({ x: visual.container.x, y: visual.container.y });
+      }
     }
+
+    // Fallback: If only 1 waypoint, look for an outgoing cable
+    if (waypoints.length < 2) {
+      const originVisual = this.nodesMap.get(packet.originNodeId);
+      if (!originVisual) return;
+
+      if (this.currentConnections) {
+        const conn = this.currentConnections.find((c) => c.sourceNodeId === packet.originNodeId);
+        if (conn) {
+          const tgtVisual = this.nodesMap.get(conn.targetNodeId);
+          if (tgtVisual) {
+            waypoints.length = 0;
+            waypoints.push({ x: originVisual.container.x, y: originVisual.container.y });
+            waypoints.push({ x: tgtVisual.container.x, y: tgtVisual.container.y });
+          }
+        }
+      }
+    }
+
+    if (waypoints.length < 2) return;
+
+    let color = 0x10b981; // 200 OK GET emerald green
+    let size = 4.5;
+    let speed = 260; // px/sec
+
+    if (packet.state === 'DROPPED') {
+      color = 0xef4444; // Ruby red
+      size = 5.0;
+      speed = 220;
+    } else if (packet.isCacheHit) {
+      color = 0x06b6d4; // Electric cyan
+      size = 4.5;
+      speed = 300;
+    } else if (packet.type === 'HTTP_POST') {
+      color = 0xa855f7; // Neon purple
+      size = 5.0;
+    } else if (packet.colorHex) {
+      color = packet.colorHex;
+    }
+
+    this.activePackets.push({
+      id: packet.id,
+      waypoints,
+      currentSegment: 0,
+      segmentProgress: 0,
+      x: waypoints[0].x,
+      y: waypoints[0].y,
+      color,
+      size,
+      speed,
+      trail: [],
+      isDropped: packet.state === 'DROPPED',
+    });
   }
 
   getNodeIcon(type) {
@@ -214,28 +268,166 @@ export class TopologyScene extends Phaser.Scene {
     }
   }
 
-  update(time, delta) {
-    // Render packet particles along paths
+  renderCableTrafficPulses(time) {
+    this.cablePulseGraphics.clear();
+    if (!this.currentConnections || this.currentConnections.length === 0) return;
+
+    const pulseSpacing = 70;
+    const speed = 90; // px/sec
+
+    for (const conn of this.currentConnections) {
+      const src = this.nodesMap.get(conn.sourceNodeId);
+      const tgt = this.nodesMap.get(conn.targetNodeId);
+      if (!src || !tgt) continue;
+
+      const p1 = { x: src.container.x, y: src.container.y };
+      const p2 = { x: tgt.container.x, y: tgt.container.y };
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const totalLen = Math.sqrt(dx * dx + dy * dy);
+      if (totalLen <= 0) continue;
+
+      const pulseCount = Math.max(1, Math.floor(totalLen / pulseSpacing));
+
+      for (let i = 0; i < pulseCount; i++) {
+        const offset = i * pulseSpacing;
+        const dist = ((time * (speed / 1000)) + offset) % totalLen;
+        const progress = dist / totalLen;
+        const px = p1.x + dx * progress;
+        const py = p1.y + dy * progress;
+
+        // Draw small ambient glowing pulse running along the wire
+        this.cablePulseGraphics.fillStyle(0x38bdf8, 0.4);
+        this.cablePulseGraphics.fillCircle(px, py, 2.5);
+        this.cablePulseGraphics.fillStyle(0xffffff, 0.85);
+        this.cablePulseGraphics.fillCircle(px, py, 1.2);
+      }
+    }
+  }
+
+  updatePackets(delta) {
     this.packetGraphics.clear();
-    const TILE_PX = 80;
 
     for (let i = this.activePackets.length - 1; i >= 0; i--) {
       const p = this.activePackets[i];
-      p.progress += delta * 0.002;
+      const p1 = p.waypoints[p.currentSegment];
+      const p2 = p.waypoints[p.currentSegment + 1];
 
-      if (p.progress >= 1.0) {
-        this.particlePool.release(p);
+      if (!p1 || !p2) {
         this.activePackets.splice(i, 1);
         continue;
       }
 
-      // Draw glowing packet dot
-      const currentX = Phaser.Math.Linear(p.x, p.targetX, p.progress);
-      const currentY = Phaser.Math.Linear(p.y, p.targetY, p.progress);
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const step = (p.speed * (delta / 1000)) / Math.max(1, dist);
 
-      this.packetGraphics.fillStyle(p.colorHex, 0.9);
-      this.packetGraphics.fillCircle(currentX, currentY, 3);
+      p.segmentProgress += step;
+      p.x = p1.x + dx * p.segmentProgress;
+      p.y = p1.y + dy * p.segmentProgress;
+
+      // Maintain comet tail trailing history (last 6 positions)
+      if (!p.trail) p.trail = [];
+      p.trail.unshift({ x: p.x, y: p.y });
+      if (p.trail.length > 6) p.trail.pop();
+
+      // Render comet trail on the wire
+      for (let t = 0; t < p.trail.length; t++) {
+        const tr = p.trail[t];
+        const trAlpha = (1 - (t / p.trail.length)) * 0.45;
+        const trSize = p.size * (1 - (t / p.trail.length) * 0.5);
+        this.packetGraphics.fillStyle(p.color, trAlpha);
+        this.packetGraphics.fillCircle(tr.x, tr.y, trSize);
+      }
+
+      // Render glowing packet head directly on the wire
+      this.packetGraphics.fillStyle(p.color, 0.55);
+      this.packetGraphics.fillCircle(p.x, p.y, p.size * 1.8);
+      this.packetGraphics.fillStyle(0xffffff, 0.95);
+      this.packetGraphics.fillCircle(p.x, p.y, p.size * 0.7);
+
+      if (p.segmentProgress >= 1.0) {
+        p.currentSegment++;
+        p.segmentProgress = 0;
+
+        // If reached end of journey
+        if (p.currentSegment >= p.waypoints.length - 1) {
+          if (p.isDropped) {
+            this.spawnExplosionSparks(p.x, p.y, 0xef4444, 8);
+          } else {
+            this.spawnArrivalPulse(p.x, p.y, p.color);
+          }
+          this.activePackets.splice(i, 1);
+        }
+      }
     }
+  }
+
+  spawnExplosionSparks(x, y, color = 0xef4444, count = 8) {
+    if (this.particles.length >= 100) return;
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5);
+      const speed = 40 + Math.random() * 80;
+      this.particles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        color,
+        alpha: 1.0,
+        radius: 2 + Math.random() * 2,
+        life: 0.35 + Math.random() * 0.2,
+      });
+    }
+  }
+
+  spawnArrivalPulse(x, y, color = 0x10b981) {
+    if (this.particles.length >= 100) return;
+    for (let i = 0; i < 4; i++) {
+      const angle = (Math.PI * 2 * i) / 4;
+      const speed = 25 + Math.random() * 25;
+      this.particles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        color,
+        alpha: 0.8,
+        radius: 2,
+        life: 0.25,
+      });
+    }
+  }
+
+  updateParticles(delta) {
+    this.sparkGraphics.clear();
+    const dt = delta / 1000;
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const pt = this.particles[i];
+      pt.x += pt.vx * dt;
+      pt.y += pt.vy * dt;
+      pt.alpha -= dt / pt.life;
+
+      if (pt.alpha <= 0) {
+        this.particles.splice(i, 1);
+        continue;
+      }
+
+      this.sparkGraphics.fillStyle(pt.color, Math.max(0, pt.alpha));
+      this.sparkGraphics.fillCircle(pt.x, pt.y, pt.radius);
+    }
+  }
+
+  update(time, delta) {
+    // 1. Ambient pulses on network cables
+    this.renderCableTrafficPulses(time);
+
+    // 2. Active request packets with glowing head and comet trail
+    this.updatePackets(delta);
+
+    // 3. Arrival ripples & explosion sparks
+    this.updateParticles(delta);
   }
 
   destroy() {

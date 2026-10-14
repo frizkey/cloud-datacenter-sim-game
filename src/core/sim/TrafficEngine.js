@@ -55,6 +55,7 @@ export class TrafficEngine {
       currentNodeId: ingressNode.id,
       targetNodeId: null,
       hopCount: 0,
+      path: [ingressNode.id],
       elapsedLatencyMs: ingressNode.baseLatencyMs || 5,
       revenuePotential: SIM_CONSTANTS.REVENUE_PER_200_OK_MICRO_CENTS,
       state: PacketState.IN_FLIGHT,
@@ -62,11 +63,6 @@ export class TrafficEngine {
     };
 
     this.activePackets.set(packet.id, packet);
-
-    if (this.eventBus) {
-      this.eventBus.emit(EngineEventTypes.PACKET_SPAWNED, { packet });
-    }
-
     return packet;
   }
 
@@ -89,6 +85,8 @@ export class TrafficEngine {
     }
 
     packet.currentNodeId = nextNodeId;
+    if (!packet.path) packet.path = [packet.originNodeId || nextNodeId];
+    packet.path.push(nextNodeId);
     return packet;
   }
 
@@ -148,6 +146,7 @@ export class TrafficEngine {
     if (node.type === NodeType.CACHE_CLUSTER || node.type === NodeType.CDN_EDGE) {
       const hitRate = node.cacheHitRate !== undefined ? node.cacheHitRate : 0.85;
       if (randomFn() < hitRate) {
+        packet.isCacheHit = true;
         this.completePacket(packet);
         return { packet, isCacheHit: true };
       }
@@ -223,6 +222,9 @@ export class TrafficEngine {
         for (let i = 0; i < packetsToSpawn; i++) {
           const pkt = this.spawnPacket(node);
           this.routeFromNode(pkt, node, connections, nodes);
+          if (this.eventBus) {
+            this.eventBus.emit(EngineEventTypes.PACKET_SPAWNED, { packet: pkt });
+          }
         }
       }
     }
