@@ -56,6 +56,16 @@ export class BuildDrawer {
 
     this.container.appendChild(this.rootElement);
 
+    // Prevent touches/clicks in drawer from propagating to canvas
+    this.rootElement.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+    });
+
+    // Subscribe to placement exited to clear selection highlight
+    this.unsubscribeExitPlacement = globalEventBus.on('PLACEMENT_MODE_EXITED', () => {
+      this.clearSelection();
+    });
+
     // Event listeners
     const toggleBtn = this.rootElement.querySelector('#drawer-toggle-btn');
     toggleBtn.addEventListener('click', () => this.toggleCollapse());
@@ -69,6 +79,20 @@ export class BuildDrawer {
     });
 
     this.renderCategoryItems(this.currentCategory);
+  }
+
+  selectCard(card) {
+    const cards = this.rootElement.querySelectorAll('.component-card');
+    cards.forEach((c) => c.classList.remove('selected'));
+    if (card) {
+      card.classList.add('selected');
+    }
+  }
+
+  clearSelection() {
+    if (!this.rootElement) return;
+    const cards = this.rootElement.querySelectorAll('.component-card');
+    cards.forEach((c) => c.classList.remove('selected'));
   }
 
   toggleCollapse() {
@@ -123,6 +147,7 @@ export class BuildDrawer {
       const card = document.createElement('div');
       card.className = 'component-card';
       card.setAttribute('data-type', item.type);
+      card.setAttribute('draggable', 'true');
       card.innerHTML = `
         <div class="card-icon">${this.getItemIcon(item.type)}</div>
         <div class="card-info">
@@ -131,10 +156,31 @@ export class BuildDrawer {
         </div>
       `;
 
-      // Touch / Click to select or drag
-      card.addEventListener('pointerdown', (e) => {
+      // HTML5 Drag and Drop support
+      card.addEventListener('dragstart', (e) => {
+        if (e.dataTransfer) {
+          e.dataTransfer.setData('application/json', JSON.stringify({ type: item.type }));
+          e.dataTransfer.setData('text/plain', item.type);
+          e.dataTransfer.effectAllowed = 'copy';
+        }
+        this.selectCard(card);
         this.onSelectComponent(item.type);
         globalEventBus.emit('COMPONENT_DRAG_INITIATED', { type: item.type });
+      });
+
+      // Pointer click / touch to select or drag
+      card.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        this.selectCard(card);
+        this.onSelectComponent(item.type);
+        globalEventBus.emit('COMPONENT_DRAG_INITIATED', { type: item.type });
+      });
+
+      card.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.selectCard(card);
+        this.onSelectComponent(item.type);
+        globalEventBus.emit('START_PLACEMENT_MODE', { type: item.type });
       });
 
       palette.appendChild(card);
@@ -167,6 +213,7 @@ export class BuildDrawer {
   }
 
   destroy() {
+    if (this.unsubscribeExitPlacement) this.unsubscribeExitPlacement();
     if (this.rootElement && this.rootElement.parentNode) {
       this.rootElement.parentNode.removeChild(this.rootElement);
     }

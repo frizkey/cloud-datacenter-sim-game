@@ -229,18 +229,34 @@ const drawer = new BuildDrawer({
   },
 });
 
-touchFsm.onComponentPlaced = ({ componentType, screenX, screenY }) => {
-  const snapped = gridSnapper.snap(screenX, screenY);
-  const validation = gridSnapper.validatePlacement(snapped.gridX, snapped.gridY, simulationEngine.nodes);
+// Wire global component placement
+globalEventBus.on('PLACE_COMPONENT', (evt) => {
+  const { type, gridX, gridY } = evt.payload || evt;
+  if (type in NodeType) {
+    const node = simulationEngine.addNode({
+      type,
+      gridX,
+      gridY,
+    });
+    simulationEngine.autoConnectNode(node);
+    globalAudioManager.playNodeClick();
+    globalHapticsManager.lightTap();
+  } else if (type in FacilityComponentType) {
+    simulationEngine.addFacilityComponent({
+      type,
+      isoX: gridX,
+      isoY: gridY,
+    });
+    globalAudioManager.playNodeClick();
+    globalHapticsManager.lightTap();
+  }
+});
 
-  if (validation.valid) {
-    if (componentType in NodeType) {
-      simulationEngine.addNode({
-        type: componentType,
-        gridX: snapped.gridX,
-        gridY: snapped.gridY,
-      });
-    }
+touchFsm.onComponentPlaced = ({ componentType, screenX, screenY }) => {
+  if (game.scene.isActive('TopologyScene')) {
+    const topoScene = game.scene.getScene('TopologyScene');
+    const worldPoint = topoScene.cameras.main.getWorldPoint(screenX, screenY);
+    topoScene.tryPlaceNodeAt(componentType, worldPoint.x, worldPoint.y);
   }
 };
 

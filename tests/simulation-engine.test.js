@@ -106,4 +106,34 @@ describe('SimulationEngine Integration Tests', () => {
     assert.ok(engine2.nodes.has(ingress.id));
     assert.ok(engine2.nodes.has(db.id));
   });
+
+  it('automatically connects newly placed nodes into topology graph', () => {
+    const bus = new EventBus();
+    const engine = new SimulationEngine({ eventBus: bus });
+
+    const ingress = engine.addNode({ type: NodeType.CLIENT_INGRESS, gridX: 0, gridY: 0 });
+    const lb = engine.addNode({ type: NodeType.LOAD_BALANCER, gridX: 2, gridY: 0 });
+    const db = engine.addNode({ type: NodeType.DATABASE_SQL, gridX: 6, gridY: 0 });
+
+    engine.connectNodes(ingress.id, lb.id);
+
+    // Place a compute pod: should auto-connect from lb and to db
+    const pod = engine.addNode({ type: NodeType.COMPUTE_POD, gridX: 4, gridY: 0 });
+    const connections = engine.autoConnectNode(pod);
+
+    assert.ok(connections.length >= 2, 'Should create upstream and downstream links');
+    
+    // Check lb -> pod
+    const lbToPod = Array.from(engine.connections.values()).find(
+      (c) => c.sourceNodeId === lb.id && c.targetNodeId === pod.id
+    );
+    assert.ok(lbToPod, 'LB should connect to new pod');
+
+    // Check pod -> db
+    const podToDb = Array.from(engine.connections.values()).find(
+      (c) => c.sourceNodeId === pod.id && c.targetNodeId === db.id
+    );
+    assert.ok(podToDb, 'New pod should connect to DB');
+  });
 });
+

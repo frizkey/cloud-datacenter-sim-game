@@ -6,6 +6,8 @@
 import Phaser from 'phaser';
 import { ParticlePool } from '../render/ParticlePool.js';
 import { EngineEventTypes, globalEventBus } from '../core/events/EventBus.js';
+import { GridSnapper } from '../render/GridSnapper.js';
+import { COMPONENT_CATALOG, NodeType } from '../core/sim/Constants.js';
 
 export class TopologyScene extends Phaser.Scene {
   constructor() {
@@ -16,6 +18,13 @@ export class TopologyScene extends Phaser.Scene {
     this.activePackets = [];
     this.particles = [];
     this.currentConnections = [];
+    this.gridSnapper = new GridSnapper({ tileSize: 80 });
+
+    // Placement Mode state
+    this.isPlacing = false;
+    this.placementType = null;
+    this.placementGhost = null;
+    this.isDraggingFromDrawer = false;
   }
 
   create() {
@@ -42,8 +51,33 @@ export class TopologyScene extends Phaser.Scene {
       this.spawnVisualPacket(evt.payload.packet);
     });
 
-    // Enable drag-to-pan camera
+    // Subscribe to placement initiation events
+    this.unsubscribeDragInitiated = globalEventBus.on('COMPONENT_DRAG_INITIATED', (evt) => {
+      if (evt?.payload?.type) {
+        this.enterPlacementMode(evt.payload.type, true);
+      }
+    });
+
+    this.unsubscribeStartPlacement = globalEventBus.on('START_PLACEMENT_MODE', (evt) => {
+      if (evt?.payload?.type) {
+        this.enterPlacementMode(evt.payload.type, false);
+      }
+    });
+
+    this.unsubscribeCancelPlacement = globalEventBus.on('CANCEL_PLACEMENT_MODE', () => {
+      this.exitPlacementMode();
+    });
+
+    // Setup HTML5 canvas drag & drop
+    this.setupCanvasDrop();
+
+    // Enable drag-to-pan camera & placement ghost tracking
     this.input.on('pointermove', (pointer) => {
+      if (this.isPlacing) {
+        this.updatePlacementGhost(pointer);
+        return; // SUPPRESS CAMERA PAN WHILE PLACING/DRAGGING COMPONENT
+      }
+
       if (pointer.isDown && !pointer.wasTouchHandled) {
         this.cameras.main.scrollX -= (pointer.x - pointer.prevPosition.x) / this.cameras.main.zoom;
         this.cameras.main.scrollY -= (pointer.y - pointer.prevPosition.y) / this.cameras.main.zoom;
@@ -56,13 +90,55 @@ export class TopologyScene extends Phaser.Scene {
       this.cameras.main.setZoom(newZoom);
     });
 
-    // Deselect active node when clicking on empty canvas space
+    // Handle click to place or empty canvas deselect
     this.input.on('pointerdown', (pointer, currentlyOver) => {
+      if (this.isPlacing) {
+        if (pointer.button === 2) {
+          // Right click cancels placement
+          this.exitPlacementMode();
+          return;
+        }
+
+        // Left click to place
+        const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+        const placed = this.tryPlaceNodeAt(this.placementType, worldPoint.x, worldPoint.y);
+        if (placed) {
+          this.exitPlacementMode();
+        }
+        return;
+      }
+
       if (!currentlyOver || currentlyOver.length === 0) {
         globalEventBus.emit('NODE_DESELECTED');
       }
     });
+
+    // Handle drag-and-drop release
+    this.input.on('pointerup', (pointer) => {
+      if (this.isPlacing && this.isDraggingFromDrawer) {
+        const isOverDrawer = pointer.y > this.scale.height - 120;
+        if (!isOverDrawer) {
+          const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+          const placed = this.tryPlaceNodeAt(this.placementType, worldPoint.x, worldPoint.y);
+          if (placed) {
+            this.exitPlacementMode();
+          }
+        } else {
+          // Stay in placement mode so user can click to place
+          this.isDraggingFromDrawer = false;
+        }
+      }
+    });
+
+    // Escape key cancels placement mode
+    this.escKeyHandler = (e) => {
+      if (e.key === 'Escape' && this.isPlacing) {
+        this.exitPlacementMode();
+      }
+    };
+    window.addEventListener('keydown', this.escKeyHandler);
   }
+
 
   drawBackgroundGrid() {
     this.gridGraphics.clear();
@@ -433,5 +509,258 @@ export class TopologyScene extends Phaser.Scene {
   destroy() {
     if (this.unsubscribeSnapshot) this.unsubscribeSnapshot();
     if (this.unsubscribePacket) this.unsubscribePacket();
+    if (this.unsubscribeDragInitiated) this.unsubscribeDragInitiated();
+    if (this.unsubscribeStartPlacement) this.unsubscribeStartPlacement();
+    if (this.unsubscribeCancelPlacement) this.unsubscribeCancelPlacement();
+    if (this.escKeyHandler) window.removeEventListener('keydown', this.escKeyHandler);
+
+    const canvas = this.game?.canvas;
+    if (canvas && this.canvasDragOverHandler) {
+      canvas.removeEventListener('dragover', this.canvasDragOverHandler);
+      canvas.removeEventListener('drop', this.canvasDropHandler);
+    }
+
+    if (this.placementGhost) {
+      this.placementGhost.destroy();
+      this.placementGhost = null;
+    }
+  }
+
+  setupCanvasDrop() {
+    const canvas = this.game?.canvas || document.querySelector('canvas');
+    if (!canvas) return;
+
+    this.canvasDragOverHandler = (e) => {
+      e.preventDefault();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'copy';
+      }
+      if (this.isPlacing && this.placementGhost) {
+        const rect = canvas.getBoundingClientRect();
+        const screenX = (e.clientX - rect.left) * (this.scale.width / rect.width);
+        const screenY = (e.clientY - rect.top) * (this.scale.height / rect.height);
+        const worldPoint = this.cameras.main.getWorldPoint(screenX, screenY);
+        const snapped = this.gridSnapper.snap(worldPoint.x, worldPoint.y);
+        this.placementGhost.setPosition(snapped.snappedX, snapped.snappedY);
+      }
+    };
+
+    this.canvasDropHandler = (e) => {
+      e.preventDefault();
+      try {
+        let type = null;
+        const dataJson = e.dataTransfer?.getData('application/json');
+        if (dataJson) {
+          const parsed = JSON.parse(dataJson);
+          type = parsed.type;
+        } else {
+          type = e.dataTransfer?.getData('text/plain');
+        }
+
+        if (!type && this.placementType) {
+          type = this.placementType;
+        }
+
+        if (type) {
+          const rect = canvas.getBoundingClientRect();
+          const screenX = (e.clientX - rect.left) * (this.scale.width / rect.width);
+          const screenY = (e.clientY - rect.top) * (this.scale.height / rect.height);
+          const worldPoint = this.cameras.main.getWorldPoint(screenX, screenY);
+          this.tryPlaceNodeAt(type, worldPoint.x, worldPoint.y);
+          this.exitPlacementMode();
+        }
+      } catch (err) {
+        console.error('Failed to handle canvas drop:', err);
+      }
+    };
+
+    canvas.addEventListener('dragover', this.canvasDragOverHandler);
+    canvas.addEventListener('drop', this.canvasDropHandler);
+  }
+
+  enterPlacementMode(type, isDragging = false) {
+    if (!type || !(type in COMPONENT_CATALOG)) return;
+
+    this.placementType = type;
+    this.isPlacing = true;
+    this.isDraggingFromDrawer = isDragging;
+
+    if (this.placementGhost) {
+      this.placementGhost.destroy();
+      this.placementGhost = null;
+    }
+
+    const item = COMPONENT_CATALOG[type];
+    const buyDollars = ((item.costBuy || 0) / 1_000_000).toFixed(2);
+
+    this.placementGhost = this.add.container(-1000, -1000);
+    this.placementGhost.setDepth(9999);
+
+    const bgGfx = this.add.graphics();
+    bgGfx.fillStyle(0x0f172a, 0.88);
+    bgGfx.lineStyle(2, 0x22c55e, 1.0);
+    bgGfx.fillRoundedRect(-75, -35, 150, 70, 8);
+    bgGfx.strokeRoundedRect(-75, -35, 150, 70, 8);
+    this.placementGhost.add(bgGfx);
+    this.placementGhost.bgGfx = bgGfx;
+
+    const icon = this.getItemIcon(type);
+    const iconText = this.add.text(-58, -24, icon, {
+      fontSize: '22px',
+      resolution: 2,
+    });
+
+    const titleText = this.add.text(-28, -26, item.name || type, {
+      fontFamily: 'Inter, system-ui, sans-serif',
+      fontSize: '11px',
+      fontWeight: '700',
+      color: '#f8fafc',
+      resolution: 2,
+    });
+
+    const costText = this.add.text(-28, -10, `$${buyDollars}`, {
+      fontFamily: 'JetBrains Mono, monospace',
+      fontSize: '10px',
+      fontWeight: '600',
+      color: '#38bdf8',
+      resolution: 2,
+    });
+
+    const statusText = this.add.text(0, 16, 'CLICK TO PLACE (ESC: CANCEL)', {
+      fontFamily: 'JetBrains Mono, monospace',
+      fontSize: '8px',
+      fontWeight: '800',
+      color: '#4ade80',
+      resolution: 2,
+    }).setOrigin(0.5);
+
+    this.placementGhost.add([iconText, titleText, costText, statusText]);
+    this.placementGhost.statusText = statusText;
+
+    if (this.input.activePointer) {
+      this.updatePlacementGhost(this.input.activePointer);
+    }
+  }
+
+  exitPlacementMode() {
+    this.isPlacing = false;
+    this.placementType = null;
+    this.isDraggingFromDrawer = false;
+    if (this.placementGhost) {
+      this.placementGhost.destroy();
+      this.placementGhost = null;
+    }
+    globalEventBus.emit('PLACEMENT_MODE_EXITED');
+  }
+
+  updatePlacementGhost(pointer) {
+    if (!this.placementGhost || !this.placementType) return;
+
+    const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+    const snapped = this.gridSnapper.snap(worldPoint.x, worldPoint.y);
+    const existingNodes = this.currentSnapshot?.nodes || [];
+    const validation = this.gridSnapper.validatePlacement(snapped.gridX, snapped.gridY, existingNodes);
+
+    this.placementGhost.setPosition(snapped.snappedX, snapped.snappedY);
+
+    const isValid = validation.valid;
+    const gfx = this.placementGhost.bgGfx;
+    gfx.clear();
+
+    if (isValid) {
+      gfx.fillStyle(0x0f172a, 0.88);
+      gfx.lineStyle(2, 0x22c55e, 1.0);
+    } else {
+      gfx.fillStyle(0x450a0a, 0.88);
+      gfx.lineStyle(2, 0xef4444, 1.0);
+    }
+    gfx.fillRoundedRect(-75, -35, 150, 70, 8);
+    gfx.strokeRoundedRect(-75, -35, 150, 70, 8);
+
+    // Grid snap cell footprint indicator
+    gfx.lineStyle(1.5, isValid ? 0x22c55e : 0xef4444, 0.5);
+    gfx.strokeRect(-40, -40, 80, 80);
+
+    if (this.placementGhost.statusText) {
+      if (isValid) {
+        this.placementGhost.statusText.setText(`[${snapped.gridX}, ${snapped.gridY}] CLICK TO PLACE`);
+        this.placementGhost.statusText.setColor('#4ade80');
+      } else {
+        const reason = validation.reason === 'CELL_OCCUPIED' ? 'CELL OCCUPIED' : 'OUT OF BOUNDS';
+        this.placementGhost.statusText.setText(`[${snapped.gridX}, ${snapped.gridY}] ${reason}`);
+        this.placementGhost.statusText.setColor('#f87171');
+      }
+    }
+  }
+
+  tryPlaceNodeAt(type, worldX, worldY) {
+    if (!type) return false;
+
+    const snapped = this.gridSnapper.snap(worldX, worldY);
+    const existingNodes = this.currentSnapshot?.nodes || [];
+    const validation = this.gridSnapper.validatePlacement(snapped.gridX, snapped.gridY, existingNodes);
+
+    if (!validation.valid) {
+      this.cameras.main.shake(100, 0.003);
+      return false;
+    }
+
+    const catalogItem = COMPONENT_CATALOG[type];
+    const buyCost = catalogItem?.costBuy || 0;
+    const currentCash = this.currentSnapshot?.economicProfile?.cashMicroCents ?? Infinity;
+
+    if (buyCost > currentCash) {
+      this.cameras.main.shake(150, 0.005);
+      globalEventBus.emit('INSUFFICIENT_FUNDS', { required: buyCost, available: currentCash });
+      return false;
+    }
+
+    // Emit event for SimulationEngine to create node and auto-connect
+    globalEventBus.emit('PLACE_COMPONENT', {
+      type,
+      gridX: snapped.gridX,
+      gridY: snapped.gridY,
+    });
+
+    // Placement burst particle effect
+    this.spawnPlacementBurst(snapped.snappedX, snapped.snappedY, catalogItem?.colorHex || 0x38bdf8);
+    return true;
+  }
+
+  spawnPlacementBurst(x, y, color) {
+    for (let i = 0; i < 28; i++) {
+      const angle = (Math.PI * 2 * i) / 28 + (Math.random() - 0.5) * 0.3;
+      const speed = 70 + Math.random() * 150;
+      this.particles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: 3 + Math.random() * 3,
+        color: color || 0x38bdf8,
+        alpha: 1.0,
+        life: 0.6 + Math.random() * 0.3,
+      });
+    }
+  }
+
+  getItemIcon(type) {
+    switch (type) {
+      case NodeType.CLIENT_INGRESS: return '🌐';
+      case NodeType.DNS_ROUTING: return '🧭';
+      case NodeType.WAF_SHIELD: return '🛡️';
+      case NodeType.CDN_EDGE: return '⚡';
+      case NodeType.LOAD_BALANCER: return '🔀';
+      case NodeType.API_GATEWAY: return '🚪';
+      case NodeType.COMPUTE_POD: return '⚙️';
+      case NodeType.SERVERLESS_FAAS: return '🚀';
+      case NodeType.MESSAGE_BROKER: return '📨';
+      case NodeType.CACHE_CLUSTER: return '💎';
+      case NodeType.DATABASE_SQL: return '🗄️';
+      case NodeType.DATABASE_NOSQL: return '📚';
+      case NodeType.OBJECT_STORAGE: return '📦';
+      default: return '📦';
+    }
   }
 }
+

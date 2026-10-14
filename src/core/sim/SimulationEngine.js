@@ -169,6 +169,167 @@ export class SimulationEngine {
   }
 
   /**
+   * Automatically connect a newly placed node to logical upstream/downstream neighbors
+   * @param {Object} node
+   * @returns {Array<Object>} Created connections
+   */
+  autoConnectNode(node) {
+    if (!node || !node.id) return [];
+    const createdConnections = [];
+
+    const nodesList = Array.from(this.nodes.values()).filter((n) => n.id !== node.id);
+
+    const isCompute = (t) => t === NodeType.COMPUTE_POD || t === NodeType.SERVERLESS_FAAS;
+    const isGateway = (t) => t === NodeType.LOAD_BALANCER || t === NodeType.API_GATEWAY;
+    const isEdge = (t) => t === NodeType.WAF_SHIELD || t === NodeType.CDN_EDGE || t === NodeType.DNS_ROUTING;
+    const isIngress = (t) => t === NodeType.CLIENT_INGRESS;
+    const isData = (t) =>
+      t === NodeType.DATABASE_SQL ||
+      t === NodeType.DATABASE_NOSQL ||
+      t === NodeType.CACHE_CLUSTER ||
+      t === NodeType.MESSAGE_BROKER ||
+      t === NodeType.OBJECT_STORAGE;
+
+    const safeConnect = (sourceId, targetId) => {
+      const conn = this.connectNodes(sourceId, targetId);
+      if (conn && !createdConnections.includes(conn)) {
+        createdConnections.push(conn);
+      }
+    };
+
+    if (isCompute(node.type)) {
+      // Connect from upstream gateways
+      const gateways = nodesList.filter((n) => isGateway(n.type));
+      if (gateways.length > 0) {
+        for (const gw of gateways) safeConnect(gw.id, node.id);
+      } else {
+        // Connect directly from ingress or edge
+        const upstreams = nodesList.filter((n) => isEdge(n.type) || isIngress(n.type));
+        for (const up of upstreams) safeConnect(up.id, node.id);
+      }
+
+      // Connect to downstream data/state services
+      const dataNodes = nodesList.filter((n) => isData(n.type));
+      for (const d of dataNodes) safeConnect(node.id, d.id);
+    } else if (isGateway(node.type)) {
+      // Connect from ingress or edge
+      const upstreams = nodesList.filter((n) => isEdge(n.type) || isIngress(n.type));
+      for (const up of upstreams) safeConnect(up.id, node.id);
+
+      // Connect to downstream compute
+      const computes = nodesList.filter((n) => isCompute(n.type));
+      if (computes.length > 0) {
+        for (const c of computes) safeConnect(node.id, c.id);
+      } else {
+        // If no computes, connect directly to data
+        const dataNodes = nodesList.filter((n) => isData(n.type));
+        for (const d of dataNodes) safeConnect(node.id, d.id);
+      }
+    } else if (isData(node.type)) {
+      // Connect from compute nodes
+      const computes = nodesList.filter((n) => isCompute(n.type));
+      if (computes.length > 0) {
+        for (const c of computes) safeConnect(c.id, node.id);
+      } else {
+        // If no compute, connect from gateways
+        const gateways = nodesList.filter((n) => isGateway(n.type));
+        for (const gw of gateways) safeConnect(gw.id, node.id);
+      }
+    } else if (isEdge(node.type)) {
+      // Connect from ingress
+      const ingresses = nodesList.filter((n) => isIngress(n.type));
+      for (const ing of ingresses) safeConnect(ing.id, node.id);
+
+      // Connect to gateways or compute
+      const gateways = nodesList.filter((n) => isGateway(n.type));
+      if (gateways.length > 0) {
+        for (const gw of gateways) safeConnect(node.id, gw.id);
+      } else {
+        const computes = nodesList.filter((n) => isCompute(n.type));
+        for (const c of computes) safeConnect(node.id, c.id);
+      }
+    } else if (isIngress(node.type)) {
+      // Connect to edge nodes, or gateways, or compute
+      const edges = nodesList.filter((n) => isEdge(n.type));
+      if (edges.length > 0) {
+        for (const ed of edges) safeConnect(node.id, ed.id);
+      } else {
+        const gateways = nodesList.filter((n) => isGateway(n.type));
+        if (gateways.length > 0) {
+          for (const gw of gateways) safeConnect(node.id, gw.id);
+        } else {
+          const computes = nodesList.filter((n) => isCompute(n.type));
+          for (const c of computes) safeConnect(node.id, c.id);
+        }
+      }
+    }
+
+    return createdConnections;
+  }
+
+  /**
+   * Add a physical facility component (Server Rack, Chiller, PDU, etc.)
+   * @param {Object} params
+   * @returns {Object} Created component
+   */
+  addFacilityComponent(params) {
+    const catalogItem = COMPONENT_CATALOG[params.type];
+    if (!catalogItem) {
+      throw new Error(`Unknown facility component type: ${params.type}`);
+    }
+
+    const buyCost = catalogItem.costBuy || 0;
+    if (buyCost > 0) {
+      this.economicEngine.deductCash(buyCost);
+    }
+
+    const id = params.id || `fac_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    const comp = {
+      id,
+      type: params.type,
+      name: params.name || catalogItem.name,
+      isoX: params.isoX ?? 0,
+      isoY: params.isoY ?? 0,
+      temperatureCelsius: 22.0,
+      isPowerActive: true,
+      costOpexPerSec: catalogItem.costOpexPerSec || 0,
+      capacityKwh: catalogItem.capacityKwh || 50,
+      currentChargeKwh: catalogItem.capacityKwh || 50,
+      coolingCapacityKw: catalogItem.coolingCapacityKw || 0,
+      powerOutputKw: catalogItem.powerOutputKw || 0,
+      isRunning: params.type === 'DIESEL_GENERATOR' ? false : true,
+    };
+
+    this.facilityComponents.set(id, comp);
+    this.recalculateTotalOpex();
+    this.eventBus.emit('FACILITY_COMPONENT_PLACED', { component: comp });
+    return comp;
+  }
+
+  /**
+   * Remove a facility component and refund 50%
+   * @param {string} componentId
+   * @returns {boolean}
+   */
+  removeFacilityComponent(componentId) {
+    const comp = this.facilityComponents.get(componentId);
+    if (!comp) return false;
+
+    this.facilityComponents.delete(componentId);
+    const catalogItem = COMPONENT_CATALOG[comp.type];
+    const buyCost = catalogItem?.costBuy || 0;
+    const refund = Math.floor(buyCost * 0.5);
+    if (refund > 0) {
+      this.economicEngine.addCash(refund);
+    }
+
+    this.recalculateTotalOpex();
+    this.eventBus.emit('FACILITY_COMPONENT_REMOVED', { componentId, refund });
+    return true;
+  }
+
+
+  /**
    * Recalculate combined OPEX rate from active nodes and facilities
    */
   recalculateTotalOpex() {

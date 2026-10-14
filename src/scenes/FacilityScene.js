@@ -4,19 +4,25 @@
  */
 
 import Phaser from 'phaser';
-import { gridToScreen, getIsoDepth, getTileDiamondVertices, DEFAULT_TILE_WIDTH, DEFAULT_TILE_HEIGHT } from '../render/IsoMath.js';
+import { gridToScreen, screenToGridCell, getIsoDepth, getTileDiamondVertices, DEFAULT_TILE_WIDTH, DEFAULT_TILE_HEIGHT } from '../render/IsoMath.js';
 import { EngineEventTypes, globalEventBus } from '../core/events/EventBus.js';
+import { COMPONENT_CATALOG, FacilityComponentType } from '../core/sim/Constants.js';
 
 export class FacilityScene extends Phaser.Scene {
   constructor() {
     super({ key: 'FacilityScene' });
     this.facilityVisuals = new Map();
+    this.isPlacing = false;
+    this.placementType = null;
+    this.isDraggingFromDrawer = false;
   }
 
   create() {
     this.cameras.main.setBackgroundColor('#070a12');
     this.floorGraphics = this.add.graphics();
     this.componentGraphics = this.add.graphics();
+    this.ghostGraphics = this.add.graphics();
+    this.ghostGraphics.setDepth(9999);
 
     this.originX = 640;
     this.originY = 200;
@@ -28,8 +34,30 @@ export class FacilityScene extends Phaser.Scene {
       this.syncState(evt.payload.snapshot);
     });
 
-    // Enable drag-to-pan camera
+    // Subscribe to placement events for facility components
+    this.unsubscribeDragInitiated = globalEventBus.on('COMPONENT_DRAG_INITIATED', (evt) => {
+      if (evt?.payload?.type && evt.payload.type in FacilityComponentType) {
+        this.enterPlacementMode(evt.payload.type, true);
+      }
+    });
+
+    this.unsubscribeStartPlacement = globalEventBus.on('START_PLACEMENT_MODE', (evt) => {
+      if (evt?.payload?.type && evt.payload.type in FacilityComponentType) {
+        this.enterPlacementMode(evt.payload.type, false);
+      }
+    });
+
+    this.unsubscribeCancelPlacement = globalEventBus.on('CANCEL_PLACEMENT_MODE', () => {
+      this.exitPlacementMode();
+    });
+
+    // Enable drag-to-pan camera & placement ghost
     this.input.on('pointermove', (pointer) => {
+      if (this.isPlacing) {
+        this.updatePlacementGhost(pointer);
+        return; // SUPPRESS CAMERA PAN WHILE PLACING COMPONENT
+      }
+
       if (pointer.isDown && !pointer.wasTouchHandled) {
         this.cameras.main.scrollX -= (pointer.x - pointer.prevPosition.x) / this.cameras.main.zoom;
         this.cameras.main.scrollY -= (pointer.y - pointer.prevPosition.y) / this.cameras.main.zoom;
@@ -41,7 +69,46 @@ export class FacilityScene extends Phaser.Scene {
       const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom - deltaY * 0.001, 0.5, 2.5);
       this.cameras.main.setZoom(newZoom);
     });
+
+    // Handle click to place
+    this.input.on('pointerdown', (pointer) => {
+      if (this.isPlacing) {
+        if (pointer.button === 2) {
+          this.exitPlacementMode();
+          return;
+        }
+        const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+        const placed = this.tryPlaceFacilityAt(this.placementType, worldPoint.x, worldPoint.y);
+        if (placed) {
+          this.exitPlacementMode();
+        }
+      }
+    });
+
+    // Handle drag-and-drop release
+    this.input.on('pointerup', (pointer) => {
+      if (this.isPlacing && this.isDraggingFromDrawer) {
+        const isOverDrawer = pointer.y > this.scale.height - 120;
+        if (!isOverDrawer) {
+          const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+          const placed = this.tryPlaceFacilityAt(this.placementType, worldPoint.x, worldPoint.y);
+          if (placed) {
+            this.exitPlacementMode();
+          }
+        } else {
+          this.isDraggingFromDrawer = false;
+        }
+      }
+    });
+
+    this.escKeyHandler = (e) => {
+      if (e.key === 'Escape' && this.isPlacing) {
+        this.exitPlacementMode();
+      }
+    };
+    window.addEventListener('keydown', this.escKeyHandler);
   }
+
 
   drawIsometricFloor() {
     this.floorGraphics.clear();
@@ -187,5 +254,83 @@ export class FacilityScene extends Phaser.Scene {
 
   destroy() {
     if (this.unsubscribeSnapshot) this.unsubscribeSnapshot();
+    if (this.unsubscribeDragInitiated) this.unsubscribeDragInitiated();
+    if (this.unsubscribeStartPlacement) this.unsubscribeStartPlacement();
+    if (this.unsubscribeCancelPlacement) this.unsubscribeCancelPlacement();
+    if (this.escKeyHandler) window.removeEventListener('keydown', this.escKeyHandler);
+    if (this.ghostGraphics) {
+      this.ghostGraphics.destroy();
+      this.ghostGraphics = null;
+    }
+  }
+
+  enterPlacementMode(type, isDragging = false) {
+    this.placementType = type;
+    this.isPlacing = true;
+    this.isDraggingFromDrawer = isDragging;
+  }
+
+  exitPlacementMode() {
+    this.isPlacing = false;
+    this.placementType = null;
+    this.isDraggingFromDrawer = false;
+    if (this.ghostGraphics) {
+      this.ghostGraphics.clear();
+    }
+    globalEventBus.emit('PLACEMENT_MODE_EXITED');
+  }
+
+  updatePlacementGhost(pointer) {
+    if (!this.isPlacing || !this.placementType || !this.ghostGraphics) return;
+    this.ghostGraphics.clear();
+
+    const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+    const cell = screenToGridCell(worldPoint.x, worldPoint.y, this.originX, this.originY, 64, 32);
+
+    const isValid = cell.gridX >= 0 && cell.gridX < 12 && cell.gridY >= 0 && cell.gridY < 12;
+    const vertices = getTileDiamondVertices(cell.gridX, cell.gridY, this.originX, this.originY, 64, 32);
+
+    this.ghostGraphics.lineStyle(2, isValid ? 0x22c55e : 0xef4444, 0.9);
+    this.ghostGraphics.fillStyle(isValid ? 0x22c55e : 0xef4444, 0.25);
+    this.ghostGraphics.beginPath();
+    this.ghostGraphics.moveTo(vertices[0].x, vertices[0].y);
+    for (let i = 1; i < 4; i++) {
+      this.ghostGraphics.lineTo(vertices[i].x, vertices[i].y);
+    }
+    this.ghostGraphics.closePath();
+    this.ghostGraphics.fillPath();
+    this.ghostGraphics.strokePath();
+
+    if (isValid) {
+      const screen = gridToScreen(cell.gridX, cell.gridY, this.originX, this.originY, 64, 32);
+      this.ghostGraphics.lineStyle(1.5, 0x38bdf8, 0.8);
+      this.ghostGraphics.strokeRect(screen.x - 20, screen.y - 40, 40, 40);
+    }
+  }
+
+  tryPlaceFacilityAt(type, worldX, worldY) {
+    const cell = screenToGridCell(worldX, worldY, this.originX, this.originY, 64, 32);
+    if (cell.gridX < 0 || cell.gridX >= 12 || cell.gridY < 0 || cell.gridY >= 12) {
+      this.cameras.main.shake(100, 0.003);
+      return false;
+    }
+
+    const catalogItem = COMPONENT_CATALOG[type];
+    const buyCost = catalogItem?.costBuy || 0;
+    const currentCash = this.currentSnapshot?.economicProfile?.cashMicroCents ?? Infinity;
+
+    if (buyCost > currentCash) {
+      this.cameras.main.shake(150, 0.005);
+      globalEventBus.emit('INSUFFICIENT_FUNDS', { required: buyCost, available: currentCash });
+      return false;
+    }
+
+    globalEventBus.emit('PLACE_COMPONENT', {
+      type,
+      gridX: cell.gridX,
+      gridY: cell.gridY,
+    });
+    return true;
   }
 }
+
