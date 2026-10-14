@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GameModeAndCareerContract",
+  "description": "Event and schema definitions for GameModeManager, Campaign, Survival, Sandbox, and Career persistence",
+  "definitions": {
+    "GameModeType": {
+      "type": "string",
+      "enum": ["CAMPAIGN", "SURVIVAL", "SANDBOX"]
+    },
+    "GameSessionState": {
+      "type": "string",
+      "enum": ["IDLE", "BRIEFING", "ACTIVE", "PAUSED", "VICTORY", "DEFEAT"]
+    },
+    "CareerRecord": {
+      "type": "object",
+      "required": ["unlockedLevel", "levelStars", "survivalHighScoreSec", "survivalMaxRequests", "totalCareerCashEarnedMicroCents"],
+      "properties": {
+        "unlockedLevel": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "levelStars": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0, "maximum": 3 }
+        },
+        "survivalHighScoreSec": { "type": "integer", "minimum": 0 },
+        "survivalMaxRequests": { "type": "integer", "minimum": 0 },
+        "totalCareerCashMicroCents": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "EventBusEvents": {
+      "type": "object",
+      "properties": {
+        "GAME_MODE_CHANGED": {
+          "type": "object",
+          "properties": {
+            "mode": { "$ref": "#/definitions/GameModeType" }
+          },
+          "required": ["mode"]
+        },
+        "LEVEL_LOADED": {
+          "type": "object",
+          "properties": {
+            "levelNumber": { "type": "integer" },
+            "title": { "type": "string" },
+            "durationSec": { "type": "number" },
+            "startingCashMicroCents": { "type": "number" }
+          },
+          "required": ["levelNumber", "title", "durationSec", "startingCashMicroCents"]
+        },
+        "OBJECTIVE_TICK": {
+          "type": "object",
+          "properties": {
+            "elapsedSec": { "type": "number" },
+            "durationSec": { "type": "number" },
+            "currentSlaPercent": { "type": "number" },
+            "currentCashMicroCents": { "type": "number" },
+            "cumulativeRequests": { "type": "integer" }
+          },
+          "required": ["elapsedSec", "durationSec", "currentSlaPercent", "currentCashMicroCents", "cumulativeRequests"]
+        },
+        "LEVEL_VICTORY": {
+          "type": "object",
+          "properties": {
+            "levelNumber": { "type": "integer" },
+            "starsEarned": { "type": "integer", "minimum": 1, "maximum": 3 },
+            "slaPercent": { "type": "number" },
+            "finalCashMicroCents": { "type": "number" },
+            "unlockedNextLevel": { "type": "boolean" }
+          },
+          "required": ["levelNumber", "starsEarned", "slaPercent", "finalCashMicroCents", "unlockedNextLevel"]
+        },
+        "LEVEL_DEFEAT": {
+          "type": "object",
+          "properties": {
+            "levelNumber": { "type": "integer" },
+            "reason": { "type": "string" },
+            "elapsedSec": { "type": "number" }
+          },
+          "required": ["levelNumber", "reason", "elapsedSec"]
+        },
+        "SURVIVAL_GAME_OVER": {
+          "type": "object",
+          "properties": {
+            "survivalTimeSec": { "type": "number" },
+            "requestsProcessed": { "type": "integer" },
+            "isNewHighScore": { "type": "boolean" }
+          },
+          "required": ["survivalTimeSec", "requestsProcessed", "isNewHighScore"]
+        }
+      }
+    }
+  }
+}

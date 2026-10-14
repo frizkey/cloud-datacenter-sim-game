@@ -47,7 +47,7 @@ export class SimulationEngine {
 
     // Wire incident remediation actions
     this.eventBus.on('INCIDENT_REMEDIATION_REQUEST', (evt) => {
-      this.handleRemediationAction(evt);
+      this.handleRemediationAction(evt.payload || evt);
     });
   }
 

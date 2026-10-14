@@ -15,6 +15,7 @@ export class CockpitHUD {
   constructor(options = {}) {
     this.container = options.container || document.body;
     this.onViewChange = options.onViewChange || (() => {});
+    this.onOpenModes = options.onOpenModes || (() => {});
     this.currentView = 'Topology';
 
     this.rootElement = null;
@@ -74,7 +75,10 @@ export class CockpitHUD {
         </div>
       </div>
 
-      <div class="hud-right">
+      <div class="hud-right" style="display: flex; align-items: center; gap: 8px;">
+        <button id="hud-modes-btn" class="pill-btn" style="min-width: auto; min-height: 44px; padding: 0 14px; background: rgba(56, 189, 248, 0.18); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8;" aria-label="Game Modes">
+          🎮 <span class="label" style="margin-left: 4px;">Modes</span>
+        </button>
         <button id="hud-menu-btn" class="icon-touch-btn" aria-label="Game Menu">
           ⚙️
         </button>
@@ -99,9 +103,13 @@ export class CockpitHUD {
     // Button event listeners
     const btnTopology = this.rootElement.querySelector('#btn-view-topology');
     const btnFacility = this.rootElement.querySelector('#btn-view-facility');
+    const btnModes = this.rootElement.querySelector('#hud-modes-btn');
+    const btnMenu = this.rootElement.querySelector('#hud-menu-btn');
 
     btnTopology.addEventListener('click', () => this.switchView('Topology'));
     btnFacility.addEventListener('click', () => this.switchView('Facility'));
+    btnModes?.addEventListener('click', () => this.onOpenModes());
+    btnMenu?.addEventListener('click', () => this.onOpenModes());
   }
 
   switchView(viewName) {

@@ -11,11 +11,26 @@ import { FTUETutorial } from './ui/FTUETutorial.js';
 import { NodeInspector } from './ui/NodeInspector.js';
 import { ChaosDirector } from './core/sim/ChaosDirector.js';
 import { SimulationEngine } from './core/sim/SimulationEngine.js';
+import { GameModeManager } from './core/sim/GameModeManager.js';
+import { getLevelConfig } from './core/sim/CampaignLevels.js';
+import { globalCareerStorage } from './core/storage/CareerStorage.js';
+import { ModeSelectModal } from './ui/modals/ModeSelectModal.js';
+import { MissionBriefingModal } from './ui/modals/MissionBriefingModal.js';
+import { MissionDebriefingModal } from './ui/modals/MissionDebriefingModal.js';
 import { globalEventBus } from './core/events/EventBus.js';
 import { NodeType, FacilityComponentType, IncidentType, IncidentSeverity } from './core/sim/Constants.js';
 
 // Initialize headless deterministic simulation core
 const simulationEngine = new SimulationEngine({ eventBus: globalEventBus });
+const chaosDirector = new ChaosDirector(globalEventBus);
+
+// Initialize Game Mode Manager
+const gameModeManager = new GameModeManager({
+  engine: simulationEngine,
+  eventBus: globalEventBus,
+  careerStorage: globalCareerStorage,
+  chaosDirector,
+});
 
 // Setup starter infrastructure so player immediately sees live traffic
 const ingress = simulationEngine.addNode({ type: NodeType.CLIENT_INGRESS, gridX: 2, gridY: 4 });
@@ -50,6 +65,10 @@ simulationEngine.facilityComponents.set('chiller_01', {
   costOpexPerSec: 60000,
 });
 
+// Start initial session in active sandbox state
+gameModeManager.mode = 'SANDBOX';
+gameModeManager.sessionState = 'ACTIVE';
+
 // Configure Phaser 4 dual-perspective game scenes
 const config = {
   type: Phaser.AUTO,
@@ -66,6 +85,86 @@ const config = {
 
 const game = new Phaser.Game(config);
 
+// Mount Modals
+const modeSelectModal = new ModeSelectModal({
+  onSelectLevel: (lvlNum) => {
+    const levelConfig = getLevelConfig(lvlNum);
+    if (levelConfig) {
+      briefingModal.show(levelConfig);
+    }
+  },
+  onStartSurvival: () => {
+    gameModeManager.startSurvivalMode();
+  },
+  onStartSandbox: () => {
+    gameModeManager.startSandboxMode();
+  },
+  careerStorage: globalCareerStorage,
+});
+
+const briefingModal = new MissionBriefingModal({
+  onDeploy: (levelConfig) => {
+    gameModeManager.loadLevel(levelConfig.levelNumber);
+    gameModeManager.startSession();
+  },
+  onBack: () => {
+    modeSelectModal.show();
+  },
+});
+
+const debriefingModal = new MissionDebriefingModal({
+  onNextLevel: (nextLevelNum) => {
+    const levelConfig = getLevelConfig(nextLevelNum);
+    if (levelConfig) {
+      briefingModal.show(levelConfig);
+    } else {
+      modeSelectModal.show();
+    }
+  },
+  onRetryLevel: (lvlNum) => {
+    const levelConfig = getLevelConfig(lvlNum);
+    if (levelConfig) {
+      briefingModal.show(levelConfig);
+    } else {
+      modeSelectModal.show();
+    }
+  },
+  onLevelSelect: () => {
+    modeSelectModal.show();
+  },
+});
+
+// Wire game mode victory/defeat events to debriefing modal
+globalEventBus.on('LEVEL_VICTORY', (evt) => {
+  debriefingModal.show({
+    isVictory: true,
+    levelNumber: evt.payload.levelNumber,
+    starsEarned: evt.payload.starsEarned,
+    slaPercent: evt.payload.slaPercent,
+    finalCashMicroCents: evt.payload.finalCashMicroCents,
+  });
+});
+
+globalEventBus.on('LEVEL_DEFEAT', (evt) => {
+  debriefingModal.show({
+    isVictory: false,
+    levelNumber: evt.payload.levelNumber,
+    reason: evt.payload.reason,
+    elapsedSec: Math.floor(evt.payload.elapsedSec || 0),
+    slaPercent: simulationEngine.economicEngine.slaReputationPercent,
+  });
+});
+
+globalEventBus.on('SURVIVAL_GAME_OVER', (evt) => {
+  debriefingModal.show({
+    isVictory: false,
+    levelNumber: 0,
+    failureReason: `Survival run concluded after ${evt.payload.survivalTimeSec}s (${evt.payload.requestsProcessed} requests served)`,
+    elapsedSec: evt.payload.survivalTimeSec,
+    slaPercent: simulationEngine.economicEngine.slaReputationPercent,
+  });
+});
+
 // Mount CockpitHUD mobile navigation bar
 const hud = new CockpitHUD({
   onViewChange: (viewName) => {
@@ -80,6 +179,9 @@ const hud = new CockpitHUD({
         game.scene.start('FacilityScene');
       }
     }
+  },
+  onOpenModes: () => {
+    modeSelectModal.show();
   },
 });
 
@@ -107,8 +209,6 @@ touchFsm.onComponentPlaced = ({ componentType, screenX, screenY }) => {
     }
   }
 };
-
-const chaosDirector = new ChaosDirector(globalEventBus);
 
 // Mount IncidentBar triage banner
 const incidentBar = new IncidentBar({
@@ -151,7 +251,7 @@ const tickIntervalMs = 1000 / 60; // 16.666 ms
 function simLoop(now) {
   const elapsed = now - lastTime;
   if (elapsed >= tickIntervalMs) {
-    simulationEngine.tick(1 / 60);
+    gameModeManager.tick(1 / 60);
     chaosDirector.tick(1 / 60);
     lastTime = now;
   }
@@ -160,4 +260,4 @@ function simLoop(now) {
 
 requestAnimationFrame(simLoop);
 
-export { game, simulationEngine, hud };
+export { game, simulationEngine, gameModeManager, hud };
