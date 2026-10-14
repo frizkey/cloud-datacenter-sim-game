@@ -5,7 +5,7 @@
 - **Branch:** `main`
 - **Repo Root:** `/home/arie/labs/cloud-datacenter-sim-game`
 - **Paseo Project ID:** `prj_65c105297a762177` (`cloud-datacenter-sim-game`)
-- **Latest Commit:** `0b76cfc`
+- **Latest Commit:** `ec55441`
 
 ---
 
@@ -14,19 +14,18 @@
   - Created directory `/home/arie/labs/cloud-datacenter-sim-game`.
   - Registered as project in Paseo CLI under Project ID `prj_65c105297a762177`.
   - Initialized git repository on branch `main`.
-- **Full Simulation Research Document:**
-  - Preserved research specification in [docs/CLOUD_DATACENTER_SIMULATION_GAME_DESIGN.md](file:///home/arie/labs/cloud-datacenter-sim-game/docs/CLOUD_DATACENTER_SIMULATION_GAME_DESIGN.md).
-- **Mobile Game Feasibility & Deep Research Study Completed:**
-  - Completed Senior Mobile Game Designer & Technical Producer study in [docs/MOBILE_GAME_FEASIBILITY_STUDY.md](file:///home/arie/labs/cloud-datacenter-sim-game/docs/MOBILE_GAME_FEASIBILITY_STUDY.md).
-  - Categorized game in AI Feasibility Spectrum: Medium Feasibility / High Logic Automation (A-Tier simulation/routing).
-  - Defined mobile ergonomics: Landscape orientation (locked) with split-thumb ergonomics, 48x48 dp touch target standards, and safe area boundaries.
-  - Benchmarked top market competitors (*Mindustry*, *Mini Motorways*, *Builderment*) with session length targets and non-intrusive hybrid monetization architecture.
-  - Persisted architectural fact to GBrain memory (#293).
-- **SpecKit SDD Framework Initialized (Context Locked):**
-  - Configured SpecKit with Antigravity (`agy`) integration and bash scripts in `.specify/`.
-  - Installed bundled SpecKit workflow skills in `.agents/skills/`: `speckit-constitution`, `speckit-specify`, `speckit-clarify`, `speckit-plan`, `speckit-checklist`, `speckit-tasks`, `speckit-analyze`, `speckit-implement`, `speckit-converge`, `speckit-taskstoissues`.
-  - Ratified project constitution at [.specify/memory/constitution.md](file:///home/arie/labs/cloud-datacenter-sim-game/.specify/memory/constitution.md) establishing decoupled headless core, non-negotiable test-first TDD, dual-perspective presentation, and mobile performance guardrails.
-  - Persisted SDD framework commitment to GBrain memory (#294).
+- **Authoritative Research & Specification Documents:**
+  - Preserved primary research specification in [docs/CLOUD_DATACENTER_SIMULATION_GAME_DESIGN.md](file:///home/arie/labs/cloud-datacenter-sim-game/docs/CLOUD_DATACENTER_SIMULATION_GAME_DESIGN.md).
+  - Authored mobile game feasibility study in [docs/MOBILE_GAME_FEASIBILITY_STUDY.md](file:///home/arie/labs/cloud-datacenter-sim-game/docs/MOBILE_GAME_FEASIBILITY_STUDY.md).
+- **SpecKit SDD Framework & Grounded Constitution:**
+  - Configured SpecKit with Antigravity (`agy`) integration in `.specify/` and skills in `.agents/skills/`.
+  - Ratified Constitution v1.1.0 in [.specify/memory/constitution.md](file:///home/arie/labs/cloud-datacenter-sim-game/.specify/memory/constitution.md), explicitly grounded in both research documents:
+    - **Principle I:** Decoupled headless simulation core mapping to `Design Spec §4, §6.1` (4 deterministic resource equations: Latency, BTU, PUE, Cashflow).
+    - **Principle II:** Non-negotiable test-first TDD mapping to `Mobile Study §1.1` and `Design Spec §5` (headless verification for all 10 chaos incident scenarios).
+    - **Principle III:** Dual-perspective presentation decoupling mapping to `Design Spec §2.1, §6` (Pub/Sub EventBus between `TopologyScene` and `FacilityScene`).
+    - **Principle IV:** Mobile ergonomics & performance guardrails mapping to `Mobile Study §2` (Landscape locked, dual-thumb zones, 48x48 dp touch targets, WebGL particle pooling for 60 FPS).
+    - **Principle V:** Spec-driven governance & traceability mapping to SpecKit SDD workflow.
+  - Recorded persistent facts in GBrain memory (#293, #294, #295).
 - **Phaser 4 Starter Scaffold & Verification:**
   - Configured `phaser@^4.2.1` and `vite@^8.3.4` build pipeline.
   - Automated Node.js unit tests in `tests/starter.test.js` passing (3/3).
