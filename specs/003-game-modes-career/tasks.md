@@ -103,7 +103,7 @@
 - [x] T018 Run full automated test suite (`npm test`) ensuring 100% green assertions and zero regressions across Phase 1, Phase 2, and Phase 3 tests
 - [x] T019 Execute 10,000-tick headless stress test with active campaign and survival modes
 - [x] T020 Verify mobile viewport responsive layout and touch targets in browser
-- [ ] T021 Commit and push changes to git, trigger Coolify live deployment via CLI, verify public live URL (`https://cloudsim.ment.arie.web.id`), and update `STATE.md`
+- [x] T021 Commit and push changes to git, trigger Coolify live deployment via CLI, verify public live URL (`https://cloudsim.ment.arie.web.id`), and update `STATE.md`
 
 ---
 
