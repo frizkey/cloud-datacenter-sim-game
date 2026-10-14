@@ -6,7 +6,7 @@
 - **Repo Root:** `/home/arie/labs/cloud-datacenter-sim-game`
 - **Paseo Project ID:** `prj_65c105297a762177` (`cloud-datacenter-sim-game`)
 - **Active Feature:** `001-core-sim-mobile`
-- **Latest Commit:** `0d767a0`
+- **Latest Commit:** `2e9b054`
 
 ---
 
@@ -26,8 +26,11 @@
     - **Coolify Web Deployment (FR-016, SC-007):** Multi-stage Dockerfile + Nginx alpine for rapid browser playtesting and staging validation.
     - **Android Release Packaging (FR-017, SC-008):** Capacitor integration producing standalone `.apk`/`.aab` packages for Android 8.0+.
     - **iOS Strategy (FR-018):** Full-screen Progressive Web App (PWA) manifest headers for immediate zero-friction iPhone playtesting via Coolify URL, paired with Capacitor iOS project structure compatible with remote macOS CI runners (e.g. GitHub Actions `macos-latest`) for native `.ipa` generation.
+  - Clarified core game philosophy in [specs/001-core-sim-mobile/spec.md](file:///home/arie/labs/cloud-datacenter-sim-game/specs/001-core-sim-mobile/spec.md):
+    - **Anti-Presentation Style Mandate:** Explicitly rejected presentation / slide-deck formats from earlier prototypes (`cloud-arch-presenter`), locking the core design to a genuine mobile construction tycoon (*Mindustry* / *SimCity* / *Builderment* hybrid) with in-game currency, active hardware procurement, custom cable routing, and dynamic incident triage with real win/loss/bankruptcy stakes.
+    - Banned presentation hotkeys (`P`), slide embed modals, pre-canned disaster trigger rows, and instant cheat-healing buttons.
   - Re-validated and confirmed [specs/001-core-sim-mobile/checklists/requirements.md](file:///home/arie/labs/cloud-datacenter-sim-game/specs/001-core-sim-mobile/checklists/requirements.md) (16/16 checks passing).
-  - Recorded persistent facts in GBrain memory (#293, #294, #295, #296, #297).
+  - Recorded persistent facts in GBrain memory (#293, #294, #295, #296, #297, #298).
 - **Phaser 4 Starter Scaffold & Verification:**
   - Configured `phaser@^4.2.1` and `vite@^8.3.4` build pipeline.
   - Automated Node.js unit tests in `tests/starter.test.js` passing (3/3).
@@ -41,7 +44,7 @@
 1. **Implementation Plan & Architecture (`speckit-plan`):**
    - Run `/speckit-plan` for `001-core-sim-mobile` to generate:
      - `specs/001-core-sim-mobile/plan.md`
-     - `specs/001-core-sim-mobile/research.md` (including Dockerfile / Coolify deployment architecture and Capacitor packaging research)
+     - `specs/001-core-sim-mobile/research.md`
      - `specs/001-core-sim-mobile/data-model.md`
      - Contracts in `specs/001-core-sim-mobile/contracts/`
 2. **Actionable Task Breakdown (`speckit-tasks`):**
