@@ -14,12 +14,16 @@ The **Core Simulation Engine & Mobile Cockpit** constitutes Phase 1 of the Cloud
 
 Players act as a **Lead Cloud Solutions Architect & Principal SRE**, balancing four interconnected resource systems (Traffic & Compute, Data & IOPS, Physical Facility Thermodynamics, and Business Cashflow). Players design network topologies to process incoming request packets, switch to a physical server room view to manage heat and power, and triage real-time operational incidents through an ergonomic mobile cockpit.
 
+**Architectural Philosophy (Game-First vs. Presentation Tool):**  
+This project is engineered as a true construction/management tycoon game (drawing inspiration from *Mindustry*, *Mini Motorways*, and *SimCity*), deliberately rejecting the static presentation/conference demo format of earlier projects (*cloud-arch-presenter* and earlier prototypes). The game eliminates pre-canned static topologies, slide-embed modals, and presenter shortcut buttons (e.g. 1-click disaster or instant-fix hotkeys). Instead, players start with a clean canvas or a minimal starter footprint ($1\text{ VM} + 1\text{ DB}$), actively purchase components from an in-game procurement drawer using earned cash, route custom network cables, manage spatial rack layouts, and respond to emergent organic traffic and incidents through authentic operational mechanics.
+
 ---
 
 ## Clarifications
 
 ### Session 2026-10-14
 - Q: What is the target deployment and distribution matrix for testing and production releases? → A: Deploy as a containerized web game to Coolify for rapid testing, continuous staging, and live playtesting; package as a standalone native APK/AAB via Capacitor for official Android release; and provide an iOS deployment path (PWA home-screen runtime + GitHub Actions macOS CI pipeline for native IPA packaging).
+- Q: How must the gameplay and user interface distinguish itself from the "presentation/demo tool" style of the two previous projects? → A: Strictly eliminate all presenter-oriented elements: no static pre-baked slide layouts, no 1-click presenter disaster/healing buttons, and no conference presentation modes. Instead, implement a genuine mobile tycoon/simulation game: players begin with a clean canvas or humble starter tier (1 VM + 1 DB), actively purchase and drag infrastructure nodes from an in-game hardware store, route custom cables, upgrade capacity with earned capital, and handle emergent organic traffic and dynamic incidents through active game mechanics with real win/loss/bankruptcy stakes.
 
 ---
 
@@ -175,3 +179,4 @@ As a new or returning player, I want to experience guided emergency triage event
 - Real-time multiplayer collaborative architecture building and PvP competitive hacking/DDoS modes (reserved for future expansion).
 - Cloud-hosted cross-device multiplayer account synchronization (Phase 1 uses local client persistence).
 - Full 5-chapter story career campaign with cutscenes (Phase 1 delivers the core sandbox loop, initial career tutorial, and baseline incident catalog).
+- **Conference Presentation Modes & Demo Tools (STRICTLY PROHIBITED):** Features such as slide-presentation hotkeys (`P`), slide embed modals, pre-canned disaster trigger rows, and instant cheat-healing buttons are explicitly out of scope; all interactions must occur through authentic in-game currency, active hardware procurement, custom cable routing, and SRE triage mechanics.

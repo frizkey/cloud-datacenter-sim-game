@@ -32,6 +32,7 @@
 ## Validation Notes
 
 - **Initial Validation Date**: 2026-10-14
-- **Clarification Session**: 2026-10-14 — Integrated multi-target deployment matrix (Coolify web staging container, Android Capacitor APK/AAB release, and iOS PWA/CI strategy; added FR-016-018, SC-007-008).
+- **Clarification Session 1**: 2026-10-14 — Integrated multi-target deployment matrix (Coolify web staging container, Android Capacitor APK/AAB release, and iOS PWA/CI strategy; added FR-016-018, SC-007-008).
+- **Clarification Session 2**: 2026-10-14 — Explicitly banned presentation/slide-deck styles from earlier prototypes (`cloud-arch-presenter`), mandating a pure tycoon construction loop with authentic in-game economy, progression, and dynamic SRE incident triage.
 - **Result**: ALL PASS (16/16 checks satisfied).
 - **Next Phase**: Ready for `/speckit-plan` (architecture planning, research, data model, contracts).
