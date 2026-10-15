@@ -43,6 +43,11 @@ export const PacketType = Object.freeze({
   DB_TRANSACTION: 'DB_TRANSACTION',
   DDOS_FLOOD: 'DDOS_FLOOD',
   SQLI_ATTACK: 'SQLI_ATTACK',
+  STATIC_CDN: 'STATIC_CDN',
+  API_READ: 'API_READ',
+  API_WRITE: 'API_WRITE',
+  ASYNC_JOB: 'ASYNC_JOB',
+  CYBER_ATTACK: 'CYBER_ATTACK',
 });
 
 export const PacketState = Object.freeze({

@@ -17,6 +17,10 @@ export class CockpitHUD {
     this.onViewChange = options.onViewChange || (() => {});
     this.onOpenModes = options.onOpenModes || (() => {});
     this.onOpenSettings = options.onOpenSettings || (() => {});
+    this.onOpenResearch = options.onOpenResearch || (() => {});
+    this.onOpenContracts = options.onOpenContracts || (() => {});
+    this.onOpenBlueprints = options.onOpenBlueprints || (() => {});
+    this.onOpenApm = options.onOpenApm || (() => {});
     this.currentView = 'Topology';
 
     this.rootElement = null;
@@ -76,9 +80,21 @@ export class CockpitHUD {
         </div>
       </div>
 
-      <div class="hud-right" style="display: flex; align-items: center; gap: 8px;">
-        <button id="hud-modes-btn" class="pill-btn" style="min-width: auto; min-height: 44px; padding: 0 14px; background: rgba(56, 189, 248, 0.18); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8;" aria-label="Game Modes">
-          🎮 <span class="label" style="margin-left: 4px;">Modes</span>
+      <div class="hud-right" style="display: flex; align-items: center; gap: 6px;">
+        <button id="hud-apm-btn" class="pill-btn" style="min-width: auto; min-height: 44px; padding: 0 10px; background: rgba(245, 158, 11, 0.18); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24;" aria-label="APM Observability">
+          📊 <span class="label" style="margin-left: 3px;">APM</span>
+        </button>
+        <button id="hud-research-btn" class="pill-btn" style="min-width: auto; min-height: 44px; padding: 0 10px; background: rgba(168, 85, 247, 0.18); border: 1px solid rgba(168, 85, 247, 0.4); color: #c084fc;" aria-label="Research Lab">
+          🔬 <span class="label" style="margin-left: 3px;">Lab</span>
+        </button>
+        <button id="hud-contracts-btn" class="pill-btn" style="min-width: auto; min-height: 44px; padding: 0 10px; background: rgba(16, 185, 129, 0.18); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399;" aria-label="Client Contracts">
+          📜 <span class="label" style="margin-left: 3px;">RFPs</span>
+        </button>
+        <button id="hud-blueprints-btn" class="pill-btn" style="min-width: auto; min-height: 44px; padding: 0 10px; background: rgba(14, 165, 233, 0.18); border: 1px solid rgba(14, 165, 233, 0.4); color: #38bdf8;" aria-label="Blueprints & Saves">
+          📐 <span class="label" style="margin-left: 3px;">Saves</span>
+        </button>
+        <button id="hud-modes-btn" class="pill-btn" style="min-width: auto; min-height: 44px; padding: 0 10px; background: rgba(56, 189, 248, 0.18); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8;" aria-label="Game Modes">
+          🎮 <span class="label" style="margin-left: 3px;">Modes</span>
         </button>
         <button id="hud-menu-btn" class="icon-touch-btn" aria-label="Game Menu">
           ⚙️
@@ -104,11 +120,19 @@ export class CockpitHUD {
     // Button event listeners
     const btnTopology = this.rootElement.querySelector('#btn-view-topology');
     const btnFacility = this.rootElement.querySelector('#btn-view-facility');
+    const btnApm = this.rootElement.querySelector('#hud-apm-btn');
+    const btnResearch = this.rootElement.querySelector('#hud-research-btn');
+    const btnContracts = this.rootElement.querySelector('#hud-contracts-btn');
+    const btnBlueprints = this.rootElement.querySelector('#hud-blueprints-btn');
     const btnModes = this.rootElement.querySelector('#hud-modes-btn');
     const btnMenu = this.rootElement.querySelector('#hud-menu-btn');
 
     btnTopology.addEventListener('click', () => this.switchView('Topology'));
     btnFacility.addEventListener('click', () => this.switchView('Facility'));
+    btnApm?.addEventListener('click', () => this.onOpenApm());
+    btnResearch?.addEventListener('click', () => this.onOpenResearch());
+    btnContracts?.addEventListener('click', () => this.onOpenContracts());
+    btnBlueprints?.addEventListener('click', () => this.onOpenBlueprints());
     btnModes?.addEventListener('click', () => this.onOpenModes());
     btnMenu?.addEventListener('click', () => this.onOpenSettings());
   }

@@ -16,9 +16,9 @@ export const CAMPAIGN_LEVELS = Object.freeze([
     durationSec: 90,
     startingCashMicroCents: 15000000, // $15.00
     starterNodes: [
-      { id: 'node_ingress_1', type: NodeType.CLIENT_INGRESS, gridX: 100, gridY: 200, name: 'Web Visitors' },
-      { id: 'node_pod_1', type: NodeType.COMPUTE_POD, gridX: 300, gridY: 200, name: 'Node.js App Pod' },
-      { id: 'node_db_1', type: NodeType.DATABASE_SQL, gridX: 500, gridY: 200, name: 'Postgres DB' },
+      { id: 'node_ingress_1', type: NodeType.CLIENT_INGRESS, gridX: 2, gridY: 4, name: 'Web Visitors' },
+      { id: 'node_pod_1', type: NodeType.COMPUTE_POD, gridX: 5, gridY: 4, name: 'Node.js App Pod' },
+      { id: 'node_db_1', type: NodeType.DATABASE_SQL, gridX: 8, gridY: 4, name: 'Postgres DB' },
     ],
     starterConnections: [
       { sourceId: 'node_ingress_1', targetId: 'node_pod_1' },
@@ -50,11 +50,11 @@ export const CAMPAIGN_LEVELS = Object.freeze([
     durationSec: 120,
     startingCashMicroCents: 35000000, // $35.00
     starterNodes: [
-      { id: 'node_ingress_2', type: NodeType.CLIENT_INGRESS, gridX: 100, gridY: 250, name: 'Shopper Traffic' },
-      { id: 'node_lb_2', type: NodeType.LOAD_BALANCER, gridX: 250, gridY: 250, name: 'Application LB' },
-      { id: 'node_pod_2a', type: NodeType.COMPUTE_POD, gridX: 400, gridY: 180, name: 'Order Pod A' },
-      { id: 'node_pod_2b', type: NodeType.COMPUTE_POD, gridX: 400, gridY: 320, name: 'Order Pod B' },
-      { id: 'node_db_2', type: NodeType.DATABASE_SQL, gridX: 600, gridY: 250, name: 'Inventory DB' },
+      { id: 'node_ingress_2', type: NodeType.CLIENT_INGRESS, gridX: 2, gridY: 4, name: 'Shopper Traffic' },
+      { id: 'node_lb_2', type: NodeType.LOAD_BALANCER, gridX: 4, gridY: 4, name: 'Application LB' },
+      { id: 'node_pod_2a', type: NodeType.COMPUTE_POD, gridX: 6, gridY: 3, name: 'Order Pod A' },
+      { id: 'node_pod_2b', type: NodeType.COMPUTE_POD, gridX: 6, gridY: 5, name: 'Order Pod B' },
+      { id: 'node_db_2', type: NodeType.DATABASE_SQL, gridX: 9, gridY: 4, name: 'Inventory DB' },
     ],
     starterConnections: [
       { sourceId: 'node_ingress_2', targetId: 'node_lb_2' },
@@ -89,10 +89,10 @@ export const CAMPAIGN_LEVELS = Object.freeze([
     durationSec: 150,
     startingCashMicroCents: 60000000, // $60.00
     starterNodes: [
-      { id: 'node_ingress_3', type: NodeType.CLIENT_INGRESS, gridX: 80, gridY: 250, name: 'Public Ingress' },
-      { id: 'node_lb_3', type: NodeType.LOAD_BALANCER, gridX: 250, gridY: 250, name: 'Frontend LB' },
-      { id: 'node_pod_3', type: NodeType.COMPUTE_POD, gridX: 420, gridY: 250, name: 'API Server' },
-      { id: 'node_db_3', type: NodeType.DATABASE_SQL, gridX: 600, gridY: 250, name: 'UserData DB' },
+      { id: 'node_ingress_3', type: NodeType.CLIENT_INGRESS, gridX: 2, gridY: 4, name: 'Public Ingress' },
+      { id: 'node_lb_3', type: NodeType.LOAD_BALANCER, gridX: 4, gridY: 4, name: 'Frontend LB' },
+      { id: 'node_pod_3', type: NodeType.COMPUTE_POD, gridX: 6, gridY: 4, name: 'API Server' },
+      { id: 'node_db_3', type: NodeType.DATABASE_SQL, gridX: 8, gridY: 4, name: 'UserData DB' },
     ],
     starterConnections: [
       { sourceId: 'node_ingress_3', targetId: 'node_lb_3' },
@@ -134,13 +134,13 @@ export const CAMPAIGN_LEVELS = Object.freeze([
     durationSec: 180,
     startingCashMicroCents: 100000000, // $100.00
     starterNodes: [
-      { id: 'node_dns_4', type: NodeType.DNS_ROUTING, gridX: 60, gridY: 250, name: 'GeoDNS Anycast' },
-      { id: 'node_ing_us', type: NodeType.CLIENT_INGRESS, gridX: 200, gridY: 150, name: 'US Ingress' },
-      { id: 'node_ing_eu', type: NodeType.CLIENT_INGRESS, gridX: 200, gridY: 350, name: 'EU Ingress' },
-      { id: 'node_pod_us', type: NodeType.COMPUTE_POD, gridX: 380, gridY: 150, name: 'US Cluster' },
-      { id: 'node_pod_eu', type: NodeType.COMPUTE_POD, gridX: 380, gridY: 350, name: 'EU Cluster' },
-      { id: 'node_db_sql', type: NodeType.DATABASE_SQL, gridX: 560, gridY: 200, name: 'Primary DB' },
-      { id: 'node_db_nosql', type: NodeType.DATABASE_NOSQL, gridX: 560, gridY: 300, name: 'Replica DB' },
+      { id: 'node_dns_4', type: NodeType.DNS_ROUTING, gridX: 2, gridY: 4, name: 'GeoDNS Anycast' },
+      { id: 'node_ing_us', type: NodeType.CLIENT_INGRESS, gridX: 4, gridY: 3, name: 'US Ingress' },
+      { id: 'node_ing_eu', type: NodeType.CLIENT_INGRESS, gridX: 4, gridY: 5, name: 'EU Ingress' },
+      { id: 'node_pod_us', type: NodeType.COMPUTE_POD, gridX: 6, gridY: 3, name: 'US Cluster' },
+      { id: 'node_pod_eu', type: NodeType.COMPUTE_POD, gridX: 6, gridY: 5, name: 'EU Cluster' },
+      { id: 'node_db_sql', type: NodeType.DATABASE_SQL, gridX: 8, gridY: 3, name: 'Primary DB' },
+      { id: 'node_db_nosql', type: NodeType.DATABASE_NOSQL, gridX: 8, gridY: 5, name: 'Replica DB' },
     ],
     starterConnections: [
       { sourceId: 'node_dns_4', targetId: 'node_ing_us' },
@@ -184,9 +184,9 @@ export const CAMPAIGN_LEVELS = Object.freeze([
     durationSec: 200,
     startingCashMicroCents: 150000000, // $150.00
     starterNodes: [
-      { id: 'node_ing_5', type: NodeType.CLIENT_INGRESS, gridX: 100, gridY: 250, name: 'Fiber Backbone' },
-      { id: 'node_pod_5', type: NodeType.COMPUTE_POD, gridX: 350, gridY: 250, name: 'Core Compute Rack' },
-      { id: 'node_db_5', type: NodeType.DATABASE_SQL, gridX: 550, gridY: 250, name: 'Enterprise DB' },
+      { id: 'node_ing_5', type: NodeType.CLIENT_INGRESS, gridX: 2, gridY: 4, name: 'Fiber Backbone' },
+      { id: 'node_pod_5', type: NodeType.COMPUTE_POD, gridX: 5, gridY: 4, name: 'Core Compute Rack' },
+      { id: 'node_db_5', type: NodeType.DATABASE_SQL, gridX: 8, gridY: 4, name: 'Enterprise DB' },
     ],
     starterConnections: [
       { sourceId: 'node_ing_5', targetId: 'node_pod_5' },

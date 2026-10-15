@@ -35,9 +35,11 @@ export class AudioSettings {
   getDefaults() {
     return {
       masterVolume: 0.8,
+      musicVolume: 0.6,
       sfxVolume: 1.0,
       ambientVolume: 0.6,
       isMasterMuted: false,
+      isMusicMuted: false,
       isAmbientMuted: false,
       isSfxMuted: false,
       isHapticsEnabled: true,
@@ -70,9 +72,11 @@ export class AudioSettings {
       const parsed = JSON.parse(raw);
       return {
         masterVolume: this._clamp(parsed.masterVolume, 0.8),
+        musicVolume: this._clamp(parsed.musicVolume, 0.6),
         sfxVolume: this._clamp(parsed.sfxVolume, 1.0),
         ambientVolume: this._clamp(parsed.ambientVolume, 0.6),
         isMasterMuted: Boolean(parsed.isMasterMuted),
+        isMusicMuted: Boolean(parsed.isMusicMuted),
         isAmbientMuted: Boolean(parsed.isAmbientMuted),
         isSfxMuted: Boolean(parsed.isSfxMuted),
         isHapticsEnabled: parsed.isHapticsEnabled !== undefined ? Boolean(parsed.isHapticsEnabled) : true,
@@ -94,6 +98,7 @@ export class AudioSettings {
       ...this._settings,
       ...newSettings,
       masterVolume: this._clamp(newSettings.masterVolume ?? this._settings.masterVolume, 0.8),
+      musicVolume: this._clamp(newSettings.musicVolume ?? this._settings.musicVolume, 0.6),
       sfxVolume: this._clamp(newSettings.sfxVolume ?? this._settings.sfxVolume, 1.0),
       ambientVolume: this._clamp(newSettings.ambientVolume ?? this._settings.ambientVolume, 0.6),
     };
@@ -122,6 +127,16 @@ export class AudioSettings {
     return { ...this._settings };
   }
 
+  getEffectiveMasterVolume() {
+    if (this._settings.isMasterMuted) return 0;
+    return this._settings.masterVolume;
+  }
+
+  getEffectiveMusicVolume() {
+    if (this._settings.isMasterMuted || this._settings.isMusicMuted) return 0;
+    return this._settings.masterVolume * this._settings.musicVolume;
+  }
+
   getEffectiveSfxVolume() {
     if (this._settings.isMasterMuted || this._settings.isSfxMuted) return 0;
     return this._settings.masterVolume * this._settings.sfxVolume;
@@ -136,6 +151,10 @@ export class AudioSettings {
     this.saveSettings({ masterVolume: val });
   }
 
+  setMusicVolume(val) {
+    this.saveSettings({ musicVolume: val });
+  }
+
   setSfxVolume(val) {
     this.saveSettings({ sfxVolume: val });
   }
@@ -146,6 +165,10 @@ export class AudioSettings {
 
   setMasterMuted(bool) {
     this.saveSettings({ isMasterMuted: Boolean(bool) });
+  }
+
+  setMusicMuted(bool) {
+    this.saveSettings({ isMusicMuted: Boolean(bool) });
   }
 
   setAmbientMuted(bool) {

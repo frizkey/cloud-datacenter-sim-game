@@ -718,3 +718,36 @@ canvas {
     z-index: 9999;
   }
 }
+
+/* Colorblind Accessibility Shape Coding */
+.shape-indicator {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+.shape-healthy {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+}
+.shape-warning {
+  width: 8px;
+  height: 8px;
+  transform: rotate(45deg);
+  background: #f59e0b;
+}
+.shape-critical {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 9px solid #ef4444;
+}
+
+/* Notch safe-area inset rules for BuildDrawer */
+.build-drawer {
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}

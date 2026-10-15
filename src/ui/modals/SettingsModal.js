@@ -53,6 +53,18 @@ export class SettingsModal {
               </div>
             </div>
 
+            <!-- Music Volume -->
+            <div class="settings-row">
+              <div class="settings-label-wrap">
+                <span class="settings-label">Adaptive Music</span>
+                <span class="settings-desc">Generative planning ambient & crisis stems</span>
+              </div>
+              <div class="settings-slider-wrap">
+                <input type="range" id="slider-music" class="settings-slider" min="0" max="100" step="1">
+                <span id="val-music" class="settings-val-badge">60%</span>
+              </div>
+            </div>
+
             <!-- SFX Volume -->
             <div class="settings-row">
               <div class="settings-label-wrap">
@@ -133,6 +145,7 @@ export class SettingsModal {
 
     // Sliders & Toggles
     const sliderMaster = this.rootElement.querySelector('#slider-master');
+    const sliderMusic = this.rootElement.querySelector('#slider-music');
     const sliderSfx = this.rootElement.querySelector('#slider-sfx');
     const sliderAmbient = this.rootElement.querySelector('#slider-ambient');
     const toggleAmbientMute = this.rootElement.querySelector('#toggle-ambient-mute');
@@ -143,6 +156,18 @@ export class SettingsModal {
       this.rootElement.querySelector('#val-master').textContent = `${val}%`;
       this.settings.setMasterVolume(val / 100);
       if (this.audioManager) this.audioManager.unlock();
+    });
+
+    sliderMusic.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10);
+      this.rootElement.querySelector('#val-music').textContent = `${val}%`;
+      this.settings.setMusicVolume(val / 100);
+      if (this.audioManager) {
+        this.audioManager.unlock();
+        if (!this.audioManager.isMusicRunning && val > 0) {
+          this.audioManager.startAdaptiveMusic();
+        }
+      }
     });
 
     sliderSfx.addEventListener('input', (e) => {
@@ -181,17 +206,24 @@ export class SettingsModal {
   syncUIFromSettings() {
     const s = this.settings.getSettings();
     const sliderMaster = this.rootElement.querySelector('#slider-master');
+    const sliderMusic = this.rootElement.querySelector('#slider-music');
     const sliderSfx = this.rootElement.querySelector('#slider-sfx');
     const sliderAmbient = this.rootElement.querySelector('#slider-ambient');
     const toggleAmbientMute = this.rootElement.querySelector('#toggle-ambient-mute');
     const toggleHaptics = this.rootElement.querySelector('#toggle-haptics');
 
     const masterPercent = Math.round(s.masterVolume * 100);
+    const musicPercent = Math.round((s.musicVolume ?? 0.6) * 100);
     const sfxPercent = Math.round(s.sfxVolume * 100);
     const ambientPercent = Math.round(s.ambientVolume * 100);
 
     sliderMaster.value = masterPercent;
     this.rootElement.querySelector('#val-master').textContent = `${masterPercent}%`;
+
+    if (sliderMusic) {
+      sliderMusic.value = musicPercent;
+      this.rootElement.querySelector('#val-music').textContent = `${musicPercent}%`;
+    }
 
     sliderSfx.value = sfxPercent;
     this.rootElement.querySelector('#val-sfx').textContent = `${sfxPercent}%`;

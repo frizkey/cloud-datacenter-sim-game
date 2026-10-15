@@ -10,21 +10,23 @@
 Run all headless test suites to verify zero regressions across the deterministic simulation engine:
 
 ```bash
-# Run complete test suite (all 78+ unit tests across 17 suites)
+# Run complete test suite (all 145 unit & integration tests across 39 suites)
 npm test
 
-# Run specific test suites
-node --test tests/simulation-engine.test.js
-node --test tests/game-modes.test.js
-node --test tests/audio-mobile.test.js
-node --test tests/state-persistence.test.js
-node --test tests/particle-performance.test.js
+# Run end-to-end production readiness suite
+node --test tests/production-readiness.test.js
 
-# Verify Vite production build
-npm run build
+# Run multi-workload & resilience test suite
+node --test tests/workload-resilience.test.js
 
-# Synchronize mobile assets to Android Capacitor
-npx cap sync android
+# Run Factorio-style Base64 blueprint codec test
+node --test tests/blueprint-codec.test.js
+
+# Run 10,000-tick headless stress & determinism benchmark
+node --test tests/stress-sim.benchmark.js
+
+# Execute full automated production release check
+./scripts/verify-release.sh
 ```
 
 ---

@@ -104,6 +104,8 @@ export function serializeState(engineState) {
       targetComponentId: i.targetComponentId,
       timeElapsedSec: i.timeElapsedSec || 0,
     })),
+    techTree: engineState.techTree || null,
+    contracts: engineState.contracts || null,
   };
 }
 
@@ -187,32 +189,82 @@ export class StatePersistence {
     }
   }
 
-  async save(engineState) {
+  getSlotKey(slotId = 'autosave') {
+    if (!slotId || slotId === 'autosave' || slotId === 'default') {
+      return SAVE_STORAGE_KEY;
+    }
+    return `cloudsim_save_${slotId}`;
+  }
+
+  async save(engineState, slotId = 'autosave') {
     const serialized = serializeState(engineState);
     if (!validateSaveSchema(serialized)) {
       throw new Error('Simulation state failed save-state-schema validation');
     }
-    await this.storage.setItem(SAVE_STORAGE_KEY, JSON.stringify(serialized));
+    const key = this.getSlotKey(slotId);
+    await this.storage.setItem(key, JSON.stringify(serialized));
     return serialized;
   }
 
-  async load() {
-    const raw = await this.storage.getItem(SAVE_STORAGE_KEY);
+  async load(slotId = 'autosave') {
+    const key = this.getSlotKey(slotId);
+    const raw = await this.storage.getItem(key);
     if (!raw) return null;
     try {
       const parsed = JSON.parse(raw);
       if (validateSaveSchema(parsed)) {
         return parsed;
       }
-      console.warn('[StatePersistence] Saved data failed schema validation, skipping');
+      console.warn(`[StatePersistence] Saved data in ${slotId} failed schema validation, skipping`);
       return null;
     } catch (e) {
-      console.error('[StatePersistence] Error parsing saved state JSON:', e);
+      console.error(`[StatePersistence] Error parsing saved state JSON from ${slotId}:`, e);
       return null;
     }
   }
 
+  async listSlots() {
+    const slots = [
+      { id: 'autosave', name: 'Auto-Save' },
+      { id: 'slot1', name: 'Manual Slot 1' },
+      { id: 'slot2', name: 'Manual Slot 2' },
+      { id: 'slot3', name: 'Manual Slot 3' },
+    ];
+    const results = [];
+    for (const slot of slots) {
+      const raw = await this.storage.getItem(this.getSlotKey(slot.id));
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          results.push({
+            id: slot.id,
+            name: slot.name,
+            exists: true,
+            savedAtTimestamp: parsed.savedAtTimestamp,
+            nodeCount: parsed.nodes ? parsed.nodes.length : 0,
+            cashMicroCents: parsed.economicProfile?.cashMicroCents || 0,
+          });
+          continue;
+        } catch (e) {}
+      }
+      results.push({
+        id: slot.id,
+        name: slot.name,
+        exists: false,
+        savedAtTimestamp: null,
+        nodeCount: 0,
+        cashMicroCents: 0,
+      });
+    }
+    return results;
+  }
+
+  async clearSlot(slotId = 'autosave') {
+    const key = this.getSlotKey(slotId);
+    await this.storage.removeItem(key);
+  }
+
   async clear() {
-    await this.storage.removeItem(SAVE_STORAGE_KEY);
+    await this.clearSlot('autosave');
   }
 }

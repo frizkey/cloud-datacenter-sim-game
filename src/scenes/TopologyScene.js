@@ -8,6 +8,8 @@ import { ParticlePool } from '../render/ParticlePool.js';
 import { EngineEventTypes, globalEventBus } from '../core/events/EventBus.js';
 import { GridSnapper } from '../render/GridSnapper.js';
 import { COMPONENT_CATALOG, NodeType } from '../core/sim/Constants.js';
+import { drawPhaserGlyph, GLYPH_THEMES } from '../render/ComponentGlyphs.js';
+import { RadialTouchMenu } from '../ui/RadialTouchMenu.js';
 
 export class TopologyScene extends Phaser.Scene {
   constructor() {
@@ -25,6 +27,15 @@ export class TopologyScene extends Phaser.Scene {
     this.placementType = null;
     this.placementGhost = null;
     this.isDraggingFromDrawer = false;
+
+    // Manual Wiring Mode state
+    this.isWiring = false;
+    this.wiringSourceNodeId = null;
+    this.wiringStartX = 0;
+    this.wiringStartY = 0;
+    this.wiringCurrentX = 0;
+    this.wiringCurrentY = 0;
+    this.floatingTexts = [];
 
     // Explicit camera pan state to prevent canvas jumping
     this.isPanning = false;
@@ -48,6 +59,8 @@ export class TopologyScene extends Phaser.Scene {
     this.cablePulseGraphics = this.add.graphics();
     this.packetGraphics = this.add.graphics();
     this.sparkGraphics = this.add.graphics();
+    this.beaconGraphics = this.add.graphics().setDepth(18);
+    this.wiringGraphics = this.add.graphics().setDepth(20);
 
     this.nodeContainer = this.add.container(0, 0);
 
@@ -55,6 +68,11 @@ export class TopologyScene extends Phaser.Scene {
 
     // Center camera on starter topology
     this.cameras.main.centerOn(520, 320);
+
+    // Initialize RadialTouchMenu for mobile node context actions
+    this.radialMenu = new RadialTouchMenu({
+      onAction: (action, node) => this.handleRadialAction(action, node),
+    });
 
     // Subscribe to engine snapshots
     this.unsubscribeSnapshot = globalEventBus.on(EngineEventTypes.STATE_SNAPSHOT_EMITTED, (evt) => {
@@ -64,6 +82,27 @@ export class TopologyScene extends Phaser.Scene {
     // Subscribe to packet spawned events for visual particle emission
     this.unsubscribePacket = globalEventBus.on(EngineEventTypes.PACKET_SPAWNED, (evt) => {
       this.spawnVisualPacket(evt.payload.packet);
+    });
+
+    // Floating financial feedback on processed and dropped packets
+    this.unsubscribePacketProcessed = globalEventBus.on(EngineEventTypes.PACKET_PROCESSED, (evt) => {
+      const p = evt.payload?.packet;
+      if (p && p.targetNodeId) {
+        const visual = this.nodesMap.get(p.targetNodeId);
+        if (visual && visual.container) {
+          this.spawnFloatingText('+$0.002', visual.container.x, visual.container.y - 20, '#10b981');
+        }
+      }
+    });
+
+    this.unsubscribePacketDropped = globalEventBus.on(EngineEventTypes.PACKET_DROPPED, (evt) => {
+      const p = evt.payload?.packet;
+      if (p && p.targetNodeId) {
+        const visual = this.nodesMap.get(p.targetNodeId);
+        if (visual && visual.container) {
+          this.spawnFloatingText('-SLA!', visual.container.x, visual.container.y - 20, '#ef4444');
+        }
+      }
     });
 
     // Subscribe to placement initiation events
@@ -97,16 +136,27 @@ export class TopologyScene extends Phaser.Scene {
     this.unsubscribeNodeDeselected = globalEventBus.on('NODE_DESELECTED', () => {
       this.selectedNodeId = null;
       this.selectedConnectionId = null;
+      if (this.radialMenu) {
+        this.radialMenu.hide();
+      }
     });
 
     // Setup HTML5 canvas drag & drop
     this.setupCanvasDrop();
 
-    // Enable drag-to-pan camera & placement ghost tracking
+    // Enable drag-to-pan camera & placement ghost tracking & cable rubber-banding
     this.input.on('pointermove', (pointer) => {
       if (this.isPlacing) {
         this.updatePlacementGhost(pointer);
         return; // SUPPRESS CAMERA PAN WHILE PLACING/DRAGGING COMPONENT
+      }
+
+      if (this.isWiring) {
+        const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+        this.wiringCurrentX = worldPoint.x;
+        this.wiringCurrentY = worldPoint.y;
+        this.drawWiringPreview();
+        return; // SUPPRESS CAMERA PAN WHILE WIRING
       }
 
       if (this.isPanning && !this.justPlaced) {
@@ -123,8 +173,13 @@ export class TopologyScene extends Phaser.Scene {
       this.cameras.main.setZoom(newZoom);
     });
 
-    // Handle click to place or empty canvas deselect / pan start
+    // Handle click to place, cancel wiring, or empty canvas deselect / pan start
     this.input.on('pointerdown', (pointer, currentlyOver) => {
+      if (this.isWiring && pointer.button === 2) {
+        this.endManualWiring();
+        return;
+      }
+
       if (this.isPlacing) {
         if (pointer.button === 2) {
           // Right click cancels placement
@@ -154,6 +209,9 @@ export class TopologyScene extends Phaser.Scene {
       }
 
       if (!currentlyOver || currentlyOver.length === 0) {
+        if (this.radialMenu) {
+          this.radialMenu.hide();
+        }
         globalEventBus.emit('NODE_DESELECTED');
         // Start camera pan only on empty space
         this.isPanning = true;
@@ -164,8 +222,33 @@ export class TopologyScene extends Phaser.Scene {
       }
     });
 
-    // Handle drag-and-drop release
+    // Handle drag-and-drop release & manual wiring connection drop
     this.input.on('pointerup', (pointer) => {
+      if (this.isWiring) {
+        const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+        const TILE_PX = 80;
+        let targetNode = null;
+        if (this.currentSnapshot?.nodes) {
+          for (const n of this.currentSnapshot.nodes) {
+            const nx = n.gridX * TILE_PX;
+            const ny = n.gridY * TILE_PX;
+            if (Math.abs(worldPoint.x - nx) <= 45 && Math.abs(worldPoint.y - ny) <= 45) {
+              targetNode = n;
+              break;
+            }
+          }
+        }
+
+        if (targetNode && targetNode.id !== this.wiringSourceNodeId) {
+          globalEventBus.emit('CONNECT_NODES', {
+            sourceNodeId: this.wiringSourceNodeId,
+            targetNodeId: targetNode.id,
+          });
+        }
+        this.endManualWiring();
+        return;
+      }
+
       if (this.isPlacing && this.isDraggingFromDrawer) {
         const isOverDrawer = pointer.y > this.scale.height - 120;
         if (!isOverDrawer) {
@@ -185,10 +268,11 @@ export class TopologyScene extends Phaser.Scene {
       this.isPanning = false;
     });
 
-    // Escape key cancels placement mode
+    // Escape key cancels placement or wiring mode
     this.escKeyHandler = (e) => {
-      if (e.key === 'Escape' && this.isPlacing) {
-        this.exitPlacementMode();
+      if (e.key === 'Escape') {
+        if (this.isPlacing) this.exitPlacementMode();
+        if (this.isWiring) this.endManualWiring();
       }
     };
     window.addEventListener('keydown', this.escKeyHandler);
@@ -239,7 +323,8 @@ export class TopologyScene extends Phaser.Scene {
       if (!visual) {
         const container = this.add.container(posX, posY);
         const bg = this.add.graphics();
-        const icon = this.add.text(0, -12, this.getNodeIcon(node.type), { fontSize: '24px' }).setOrigin(0.5);
+        const glyphGraphic = this.add.graphics();
+
         const label = this.add.text(0, 16, node.name || node.type, {
           fontSize: '11px',
           fontFamily: 'monospace',
@@ -253,19 +338,48 @@ export class TopologyScene extends Phaser.Scene {
           color: '#38bdf8',
         }).setOrigin(0.5);
 
-        container.add([bg, icon, label, rpsLabel]);
+        // Interactive output port dot at right edge (x = 36, y = 0)
+        const outPort = this.add.circle(36, 0, 7, 0x22c55e, 1.0);
+        outPort.setStrokeStyle(2, 0xffffff, 0.9);
+        outPort.setInteractive({ useHandCursor: true });
+        outPort.on('pointerdown', (pointer) => {
+          pointer.event?.stopPropagation?.();
+          this.startManualWiring(node.id, container.x + 36, container.y);
+        });
+
+        // Interactive input port dot at left edge (x = -36, y = 0)
+        const inPort = this.add.circle(-36, 0, 7, 0x38bdf8, 1.0);
+        inPort.setStrokeStyle(2, 0xffffff, 0.9);
+        inPort.setInteractive({ useHandCursor: true });
+        inPort.on('pointerup', (pointer) => {
+          if (this.isWiring && this.wiringSourceNodeId && this.wiringSourceNodeId !== node.id) {
+            pointer.event?.stopPropagation?.();
+            globalEventBus.emit('CONNECT_NODES', {
+              sourceNodeId: this.wiringSourceNodeId,
+              targetNodeId: node.id,
+            });
+            this.endManualWiring();
+          }
+        });
+
+        container.add([bg, glyphGraphic, label, rpsLabel, outPort, inPort]);
         container.setSize(72, 72);
         container.setInteractive({ useHandCursor: true });
 
-        container.on('pointerdown', () => {
-          if (this.isPlacing) return;
+        container.on('pointerdown', (pointer) => {
+          if (this.isPlacing || this.isWiring) return;
           this.selectedNodeId = node.id;
           this.selectedConnectionId = null;
           const liveNode = this.currentSnapshot?.nodes?.find((n) => n.id === node.id) || node;
           globalEventBus.emit('NODE_SELECTED', { node: liveNode });
+          if (this.radialMenu) {
+            const screenX = pointer?.event ? pointer.event.clientX : (pointer?.x || 0);
+            const screenY = pointer?.event ? pointer.event.clientY : (pointer?.y || 0);
+            this.radialMenu.show(liveNode, screenX, screenY);
+          }
         });
 
-        visual = { container, bg, icon, label, rpsLabel, nodeData: node };
+        visual = { container, bg, glyphGraphic, label, rpsLabel, outPort, inPort, nodeData: node };
         this.nodesMap.set(node.id, visual);
         this.nodeContainer.add(container);
       }
@@ -280,10 +394,21 @@ export class TopologyScene extends Phaser.Scene {
       const borderColor = isNodeSelected
         ? 0x38bdf8
         : (node.status === 'CRITICAL' ? 0xef4444 : (node.colorHex || 0x3b82f6));
-      visual.bg.fillStyle(0x0f172a, 0.85);
+      visual.bg.fillStyle(0x0f172a, 0.9);
       visual.bg.lineStyle(isNodeSelected ? 3 : 2, borderColor, 0.9);
       visual.bg.fillRoundedRect(-36, -36, 72, 72, 10);
       visual.bg.strokeRoundedRect(-36, -36, 72, 72, 10);
+
+      // Redraw vector sci-fi blueprint glyph
+      visual.glyphGraphic.clear();
+      drawPhaserGlyph(visual.glyphGraphic, node.type, 0, -8, 16, isNodeSelected ? 0x38bdf8 : null);
+
+      // Emergency incident strobe beacon
+      if (node.status === 'CRITICAL') {
+        const pulseAlpha = Math.sin(this.time.now / 120) * 0.4 + 0.6;
+        visual.bg.lineStyle(3, 0xef4444, pulseAlpha);
+        visual.bg.strokeCircle(0, 0, 46);
+      }
 
       // Queue depth gauge bar at bottom of node
       const loadRatio = Math.min(1.0, (node.currentRps || 0) / (node.capacityRps || 500));
@@ -300,7 +425,7 @@ export class TopologyScene extends Phaser.Scene {
     const nodeCoords = new Map();
     const TILE_PX = 80;
     for (const n of nodes) {
-      nodeCoords.set(n.id, { x: n.gridX * TILE_PX, y: n.gridY * TILE_PX });
+      nodeCoords.set(n.id, { x: n.gridX * TILE_PX, y: n.gridY * TILE_PX, status: n.status });
     }
 
     for (const conn of connections) {
@@ -311,37 +436,59 @@ export class TopologyScene extends Phaser.Scene {
       const isSelected = this.selectedConnectionId === conn.id ||
         (this.selectedNodeId && (conn.sourceNodeId === this.selectedNodeId || conn.targetNodeId === this.selectedNodeId));
 
-      // Draw sleek network cable with highlight if selected or connected to selected node
-      if (isSelected) {
-        this.cableGraphics.lineStyle(3, 0x38bdf8, 1.0);
-      } else {
-        this.cableGraphics.lineStyle(2, 0x3b82f6, 0.6);
-      }
-      this.cableGraphics.lineBetween(src.x, src.y, tgt.x, tgt.y);
+      const srcPortX = src.x + 36;
+      const srcPortY = src.y;
+      const tgtPortX = tgt.x - 36;
+      const tgtPortY = tgt.y;
+      const midX = (srcPortX + tgtPortX) / 2;
 
-      // Port dots
-      this.cableGraphics.fillStyle(isSelected ? 0xffffff : 0x38bdf8, 1);
-      this.cableGraphics.fillCircle(src.x, src.y, isSelected ? 5 : 4);
-      this.cableGraphics.fillCircle(tgt.x, tgt.y, isSelected ? 5 : 4);
+      // Stepped 90-degree orthogonal Manhattan neon conduits with saturation heat tinting
+      const isCritical = src.status === 'CRITICAL' || tgt.status === 'CRITICAL';
+      const baseGlowColor = isSelected ? 0x38bdf8 : (isCritical ? 0xef4444 : 0x0284c7);
+      const coreColor = isSelected ? 0xffffff : (isCritical ? 0xfca5a5 : 0x38bdf8);
+
+      // Outer glow line
+      this.cableGraphics.lineStyle(isSelected ? 5 : 3.5, baseGlowColor, isSelected ? 0.9 : 0.6);
+      this.cableGraphics.beginPath();
+      this.cableGraphics.moveTo(srcPortX, srcPortY);
+      this.cableGraphics.lineTo(midX, srcPortY);
+      this.cableGraphics.lineTo(midX, tgtPortY);
+      this.cableGraphics.lineTo(tgtPortX, tgtPortY);
+      this.cableGraphics.strokePath();
+
+      // Inner neon core
+      this.cableGraphics.lineStyle(isSelected ? 2.5 : 1.5, coreColor, 0.95);
+      this.cableGraphics.beginPath();
+      this.cableGraphics.moveTo(srcPortX, srcPortY);
+      this.cableGraphics.lineTo(midX, srcPortY);
+      this.cableGraphics.lineTo(midX, tgtPortY);
+      this.cableGraphics.lineTo(tgtPortX, tgtPortY);
+      this.cableGraphics.strokePath();
+
+      // Port indicator dots
+      this.cableGraphics.fillStyle(0x22c55e, 1);
+      this.cableGraphics.fillCircle(srcPortX, srcPortY, isSelected ? 5 : 4);
+      this.cableGraphics.fillStyle(0x38bdf8, 1);
+      this.cableGraphics.fillCircle(tgtPortX, tgtPortY, isSelected ? 5 : 4);
     }
   }
 
   spawnVisualPacket(packet) {
     if (!packet || this.activePackets.length >= 75) return;
 
-    // Build multi-hop waypoints from packet.path
+    // Build multi-hop orthogonal waypoints from packet.path
     const pathNodeIds = packet.path && packet.path.length > 0 ? packet.path : [packet.originNodeId];
-    const waypoints = [];
+    const rawNodes = [];
 
     for (const nodeId of pathNodeIds) {
       const visual = this.nodesMap.get(nodeId);
       if (visual && visual.container) {
-        waypoints.push({ x: visual.container.x, y: visual.container.y });
+        rawNodes.push({ x: visual.container.x, y: visual.container.y });
       }
     }
 
-    // Fallback: If only 1 waypoint, look for an outgoing cable
-    if (waypoints.length < 2) {
+    // Fallback: If only 1 node, look for an outgoing cable
+    if (rawNodes.length < 2) {
       const originVisual = this.nodesMap.get(packet.originNodeId);
       if (!originVisual) return;
 
@@ -350,15 +497,32 @@ export class TopologyScene extends Phaser.Scene {
         if (conn) {
           const tgtVisual = this.nodesMap.get(conn.targetNodeId);
           if (tgtVisual) {
-            waypoints.length = 0;
-            waypoints.push({ x: originVisual.container.x, y: originVisual.container.y });
-            waypoints.push({ x: tgtVisual.container.x, y: tgtVisual.container.y });
+            rawNodes.length = 0;
+            rawNodes.push({ x: originVisual.container.x, y: originVisual.container.y });
+            rawNodes.push({ x: tgtVisual.container.x, y: tgtVisual.container.y });
           }
         }
       }
     }
 
-    if (waypoints.length < 2) return;
+    if (rawNodes.length < 2) return;
+
+    // Convert raw straight-line hops to 90-degree orthogonal Manhattan waypoints
+    const waypoints = [];
+    for (let i = 0; i < rawNodes.length - 1; i++) {
+      const p1 = rawNodes[i];
+      const p2 = rawNodes[i + 1];
+      const startX = p1.x + 36;
+      const startY = p1.y;
+      const endX = p2.x - 36;
+      const endY = p2.y;
+      const midX = (startX + endX) / 2;
+
+      if (i === 0) waypoints.push({ x: startX, y: startY });
+      waypoints.push({ x: midX, y: startY });
+      waypoints.push({ x: midX, y: endY });
+      waypoints.push({ x: endX, y: endY });
+    }
 
     let color = 0x10b981; // 200 OK GET emerald green
     let size = 4.5;
@@ -394,6 +558,82 @@ export class TopologyScene extends Phaser.Scene {
     });
   }
 
+  startManualWiring(sourceNodeId, startX, startY) {
+    this.isWiring = true;
+    this.wiringSourceNodeId = sourceNodeId;
+    this.wiringStartX = startX;
+    this.wiringStartY = startY;
+    this.wiringCurrentX = startX;
+    this.wiringCurrentY = startY;
+    this.drawWiringPreview();
+  }
+
+  drawWiringPreview() {
+    if (!this.wiringGraphics) return;
+    this.wiringGraphics.clear();
+    if (!this.isWiring) return;
+
+    const midX = (this.wiringStartX + this.wiringCurrentX) / 2;
+    // Outer neon glow
+    this.wiringGraphics.lineStyle(5, 0x38bdf8, 0.4);
+    this.wiringGraphics.beginPath();
+    this.wiringGraphics.moveTo(this.wiringStartX, this.wiringStartY);
+    this.wiringGraphics.lineTo(midX, this.wiringStartY);
+    this.wiringGraphics.lineTo(midX, this.wiringCurrentY);
+    this.wiringGraphics.lineTo(this.wiringCurrentX, this.wiringCurrentY);
+    this.wiringGraphics.strokePath();
+
+    // Inner core
+    this.wiringGraphics.lineStyle(2.5, 0xffffff, 0.95);
+    this.wiringGraphics.beginPath();
+    this.wiringGraphics.moveTo(this.wiringStartX, this.wiringStartY);
+    this.wiringGraphics.lineTo(midX, this.wiringStartY);
+    this.wiringGraphics.lineTo(midX, this.wiringCurrentY);
+    this.wiringGraphics.lineTo(this.wiringCurrentX, this.wiringCurrentY);
+    this.wiringGraphics.strokePath();
+
+    // Source and target drag dots
+    this.wiringGraphics.fillStyle(0x22c55e, 1.0);
+    this.wiringGraphics.fillCircle(this.wiringStartX, this.wiringStartY, 5);
+    this.wiringGraphics.fillStyle(0x38bdf8, 1.0);
+    this.wiringGraphics.fillCircle(this.wiringCurrentX, this.wiringCurrentY, 6);
+  }
+
+  endManualWiring() {
+    this.isWiring = false;
+    this.wiringSourceNodeId = null;
+    if (this.wiringGraphics) {
+      this.wiringGraphics.clear();
+    }
+  }
+
+  spawnFloatingText(text, x, y, color = '#10b981') {
+    if (this.floatingTexts.length >= 25) {
+      const old = this.floatingTexts.shift();
+      if (old && old.destroy) old.destroy();
+    }
+    const txtObj = this.add.text(x, y, text, {
+      fontFamily: 'monospace',
+      fontSize: '12px',
+      fontStyle: 'bold',
+      color,
+    }).setOrigin(0.5).setDepth(30);
+
+    this.tweens.add({
+      targets: txtObj,
+      y: y - 30,
+      alpha: 0,
+      duration: 1200,
+      ease: 'Power2',
+      onComplete: () => {
+        txtObj.destroy();
+        const idx = this.floatingTexts.indexOf(txtObj);
+        if (idx !== -1) this.floatingTexts.splice(idx, 1);
+      },
+    });
+    this.floatingTexts.push(txtObj);
+  }
+
   getNodeIcon(type) {
     switch (type) {
       case 'CLIENT_INGRESS': return '🌐';
@@ -425,11 +665,16 @@ export class TopologyScene extends Phaser.Scene {
       const tgt = this.nodesMap.get(conn.targetNodeId);
       if (!src || !tgt) continue;
 
-      const p1 = { x: src.container.x, y: src.container.y };
-      const p2 = { x: tgt.container.x, y: tgt.container.y };
-      const dx = p2.x - p1.x;
-      const dy = p2.y - p1.y;
-      const totalLen = Math.sqrt(dx * dx + dy * dy);
+      const p1 = { x: src.container.x + 36, y: src.container.y };
+      const p4 = { x: tgt.container.x - 36, y: tgt.container.y };
+      const midX = (p1.x + p4.x) / 2;
+      const p2 = { x: midX, y: p1.y };
+      const p3 = { x: midX, y: p4.y };
+
+      const l1 = Math.abs(p2.x - p1.x);
+      const l2 = Math.abs(p3.y - p2.y);
+      const l3 = Math.abs(p4.x - p3.x);
+      const totalLen = l1 + l2 + l3;
       if (totalLen <= 0) continue;
 
       const pulseCount = Math.max(1, Math.floor(totalLen / pulseSpacing));
@@ -437,14 +682,28 @@ export class TopologyScene extends Phaser.Scene {
       for (let i = 0; i < pulseCount; i++) {
         const offset = i * pulseSpacing;
         const dist = ((time * (speed / 1000)) + offset) % totalLen;
-        const progress = dist / totalLen;
-        const px = p1.x + dx * progress;
-        const py = p1.y + dy * progress;
+
+        let px = p1.x;
+        let py = p1.y;
+
+        if (dist <= l1 && l1 > 0) {
+          const prog = dist / l1;
+          px = p1.x + (p2.x - p1.x) * prog;
+          py = p1.y;
+        } else if (dist <= l1 + l2 && l2 > 0) {
+          const prog = (dist - l1) / l2;
+          px = midX;
+          py = p2.y + (p3.y - p2.y) * prog;
+        } else if (l3 > 0) {
+          const prog = (dist - l1 - l2) / l3;
+          px = p3.x + (p4.x - p3.x) * prog;
+          py = p4.y;
+        }
 
         // Draw small ambient glowing pulse running along the wire
-        this.cablePulseGraphics.fillStyle(0x38bdf8, 0.4);
+        this.cablePulseGraphics.fillStyle(0x38bdf8, 0.5);
         this.cablePulseGraphics.fillCircle(px, py, 2.5);
-        this.cablePulseGraphics.fillStyle(0xffffff, 0.85);
+        this.cablePulseGraphics.fillStyle(0xffffff, 0.9);
         this.cablePulseGraphics.fillCircle(px, py, 1.2);
       }
     }
@@ -878,5 +1137,31 @@ export class TopologyScene extends Phaser.Scene {
     t = Math.max(0, Math.min(1, t));
     return (px - (x1 + t * (x2 - x1))) ** 2 + (py - (y1 + t * (y2 - y1))) ** 2;
   }
+
+  handleRadialAction(action, node) {
+    if (!node) return;
+    switch (action) {
+      case 'restart':
+        globalEventBus.emit('NODE_RESTART', { nodeId: node.id });
+        break;
+      case 'scale':
+        globalEventBus.emit('SCALE_NODE', { nodeId: node.id, scaleFactor: 1.25 });
+        break;
+      case 'wiring': {
+        const visual = this.nodesMap.get(node.id);
+        const startX = visual ? visual.container.x + 36 : (node.gridX * 80 + 36);
+        const startY = visual ? visual.container.y : (node.gridY * 80);
+        this.startManualWiring(node.id, startX, startY);
+        break;
+      }
+      case 'inspect':
+        globalEventBus.emit('NODE_SELECTED', { node });
+        break;
+      case 'delete':
+        globalEventBus.emit('SELL_NODE', { nodeId: node.id });
+        break;
+    }
+  }
 }
+
 

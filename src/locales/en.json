@@ -1,0 +1,87 @@
+{
+  "meta": {
+    "locale": "en",
+    "name": "English",
+    "version": "1.0.0"
+  },
+  "hud": {
+    "cash": "Cash",
+    "opex": "OPEX",
+    "sla": "SLA",
+    "rps": "RPS",
+    "latency": "Latency",
+    "gridPower": "Grid",
+    "battery": "UPS",
+    "temp": "Temp",
+    "pue": "PUE",
+    "build": "Build",
+    "research": "Research",
+    "contracts": "Contracts",
+    "settings": "Settings",
+    "pause": "Pause",
+    "resume": "Resume",
+    "fastForward": "Fast Forward",
+    "save": "Save Game",
+    "blueprint": "Blueprint"
+  },
+  "components": {
+    "CLIENT_INGRESS": { "name": "Global Ingress", "desc": "Ingress gateway receiving public client HTTP traffic." },
+    "DNS_ROUTING": { "name": "GeoDNS Router", "desc": "Anycast DNS routing traffic across availability zones." },
+    "WAF_SHIELD": { "name": "Cloud WAF", "desc": "Web Application Firewall filtering malicious bot attacks." },
+    "CDN_EDGE": { "name": "Edge CDN Cache", "desc": "Edge point-of-presence caching static and API assets." },
+    "LOAD_BALANCER": { "name": "Load Balancer", "desc": "L7 reverse proxy distributing requests across compute nodes." },
+    "API_GATEWAY": { "name": "API Gateway", "desc": "Token authentication, rate-limiting, and routing gateway." },
+    "COMPUTE_POD": { "name": "Compute Pod", "desc": "Containerized application microservice processing business logic." },
+    "SERVERLESS_FAAS": { "name": "Serverless FaaS", "desc": "Event-driven serverless function instances with zero idle cost." },
+    "MESSAGE_BROKER": { "name": "Message Queue", "desc": "Distributed asynchronous message queue absorbing traffic spikes." },
+    "DATABASE_SQL": { "name": "Relational DB", "desc": "ACID transactional database with read-replica scaling." },
+    "DATABASE_NOSQL": { "name": "NoSQL Store", "desc": "Horizontally partitioned high-throughput key-value store." },
+    "OBJECT_STORAGE": { "name": "Object Storage", "desc": "High-durability blob storage bucket for files and backups." },
+    "PDU_3PHASE": { "name": "3-Phase PDU", "desc": "Power distribution unit delivering clean electrical power to racks." },
+    "CRAC_CHILLER": { "name": "CRAC Chiller", "desc": "Computer room air conditioner maintaining thermal equilibrium." },
+    "UPS_BATTERY": { "name": "UPS Battery", "desc": "Uninterruptible battery backup bank bridging power outages." },
+    "DIESEL_GENERATOR": { "name": "Diesel Generator", "desc": "Emergency backup diesel turbine providing auxiliary power." },
+    "CIRCUIT_BREAKER": { "name": "Circuit Breaker", "desc": "Automatic switch protecting racks from electrical overloads." }
+  },
+  "incidents": {
+    "DDOS_ATTACK": { "name": "DDoS Volumetric Flood", "desc": "Hostile botnet overwhelming ingress nodes with synthetic packets." },
+    "BGP_LEAK": { "name": "BGP Route Leak", "desc": "Upstream transit route hijacking causing severe packet loss." },
+    "GRID_BLACKOUT": { "name": "Municipal Grid Blackout", "desc": "Main electrical feed cut off. Running on UPS battery!" },
+    "THERMAL_RUNAWAY": { "name": "Thermal Runaway", "desc": "Rack temperature exceeding critical limits. Throttling compute!" },
+    "DB_CONNECTION_LEAK": { "name": "Connection Pool Exhaustion", "desc": "Database query threads hung, blocking downstream compute." },
+    "CASCADING_FAILURE": { "name": "Cascading Queue Overflow", "desc": "Upstream queue full, dropping traffic across all zones." }
+  },
+  "techTree": {
+    "era1": "Era 1: Bare Metal Monolith",
+    "era2": "Era 2: Virtualization & High Availability",
+    "era3": "Era 3: Cloud-Native Microservices",
+    "era4": "Era 4: Hyperscale Autonomous Operations"
+  },
+  "contracts": {
+    "title": "Client Enterprise RFPs",
+    "active": "Active Contracts",
+    "available": "Available Bids",
+    "accept": "Sign Contract",
+    "fulfilled": "Fulfilled",
+    "breached": "Breached",
+    "penalty": "SLA Penalty"
+  },
+  "blueprints": {
+    "export": "Export Blueprint",
+    "import": "Import Blueprint",
+    "copied": "Blueprint Copied to Clipboard!",
+    "loaded": "Blueprint Successfully Loaded!"
+  },
+  "settings": {
+    "title": "Settings",
+    "masterVolume": "Master Volume",
+    "musicVolume": "Music Volume",
+    "sfxVolume": "Sound Effects",
+    "ambienceVolume": "Datacenter Ambience",
+    "haptics": "Tactile Haptics",
+    "colorblindMode": "Colorblind Palette",
+    "reducedMotion": "Reduced Motion",
+    "language": "Language",
+    "close": "Close"
+  }
+}

@@ -32,6 +32,8 @@ export class MobileTouchFSM {
     this.onPinchChange = null; // (scaleRatio, midpoint) => void
     this.onComponentPlaced = null; // ({ componentType, screenX, screenY }) => void
     this.onWireCompleted = null; // (sourceId, targetId) => void
+    this.onWiringDrag = null; // ({ sourceNodeId, screenX, screenY }) => void
+    this.onWiringReleased = null; // ({ sourceNodeId, screenX, screenY }) => void
   }
 
   getActivePointerCount() {
@@ -87,6 +89,14 @@ export class MobileTouchFSM {
           this.onPinchChange(ratio);
         }
       }
+    } else if (this.currentState === TouchState.WIRING_CABLE) {
+      if (this.onWiringDrag && tracked) {
+        this.onWiringDrag({
+          sourceNodeId: this.wireSourceNodeId,
+          screenX: pointer.x,
+          screenY: pointer.y,
+        });
+      }
     }
   }
 
@@ -101,6 +111,15 @@ export class MobileTouchFSM {
       }
       this.draggedComponentType = null;
       this.currentState = TouchState.IDLE;
+    } else if (this.currentState === TouchState.WIRING_CABLE) {
+      if (this.onWiringReleased && this.wireSourceNodeId) {
+        this.onWiringReleased({
+          sourceNodeId: this.wireSourceNodeId,
+          screenX: pointer.x,
+          screenY: pointer.y,
+        });
+      }
+      this.cancelWiring();
     } else if (this.currentState === TouchState.PINCHING) {
       this.currentState = TouchState.IDLE;
     } else if (this.currentState === TouchState.PANNING) {

@@ -5,6 +5,7 @@
 
 import { COMPONENT_CATALOG, NodeType, FacilityComponentType } from '../core/sim/Constants.js';
 import { globalEventBus } from '../core/events/EventBus.js';
+import { getGlyphSvg } from '../render/ComponentGlyphs.js';
 
 export class BuildDrawer {
   /**
@@ -15,11 +16,22 @@ export class BuildDrawer {
   constructor(options = {}) {
     this.container = options.container || document.body;
     this.onSelectComponent = options.onSelectComponent || (() => {});
+    this.techTree = options.techTree || null;
     this.isCollapsed = false;
     this.currentCategory = 'Perimeter';
 
     this.categories = ['Perimeter', 'Compute', 'Data & Queue', 'Facility'];
     this.rootElement = null;
+
+    this.unsubscribeTechUnlocked = globalEventBus.on('TECH_UNLOCKED', () => {
+      this.renderCategoryItems(this.currentCategory);
+    });
+
+    this.unsubscribeIncidentTriggered = globalEventBus.on('INCIDENT_TRIGGERED', () => {
+      if (!this.isCollapsed) {
+        this.toggleCollapse();
+      }
+    });
 
     this.initDOM();
   }
@@ -141,23 +153,36 @@ export class BuildDrawer {
     });
 
     for (const item of items) {
+      const isUnlocked = !this.techTree || this.techTree.isComponentUnlocked(item.type);
       const buyDollars = (item.costBuy / 1_000_000).toFixed(2);
       const opexDollars = (item.costOpexPerSec / 1_000_000).toFixed(3);
 
       const card = document.createElement('div');
-      card.className = 'component-card';
+      card.className = `component-card ${isUnlocked ? '' : 'locked'}`;
       card.setAttribute('data-type', item.type);
-      card.setAttribute('draggable', 'true');
+      card.setAttribute('draggable', isUnlocked ? 'true' : 'false');
+      if (!isUnlocked) {
+        card.style.opacity = '0.45';
+        card.style.filter = 'grayscale(0.7)';
+        card.title = 'Locked: Research in SRE Lab';
+      }
+
+      const lockBadge = isUnlocked ? '' : '<span style="font-size: 10px; color: #f43f5e; font-weight: 700; margin-left: 4px;">🔒 LOCKED</span>';
+
       card.innerHTML = `
         <div class="card-icon">${this.getItemIcon(item.type)}</div>
         <div class="card-info">
-          <span class="card-title">${item.name}</span>
+          <span class="card-title">${item.name} ${lockBadge}</span>
           <span class="card-price">$${buyDollars} <small class="text-muted">(+$${opexDollars}/s)</small></span>
         </div>
       `;
 
       // HTML5 Drag and Drop support
       card.addEventListener('dragstart', (e) => {
+        if (!isUnlocked) {
+          e.preventDefault();
+          return;
+        }
         if (e.dataTransfer) {
           e.dataTransfer.setData('application/json', JSON.stringify({ type: item.type }));
           e.dataTransfer.setData('text/plain', item.type);
@@ -171,6 +196,12 @@ export class BuildDrawer {
       // Pointer click / touch to select or drag
       card.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
+        if (!isUnlocked) {
+          globalEventBus.emit('SHOW_NOTIFICATION', {
+            message: `⚠️ ${item.name} is locked! Unlock it in the SRE Research Lab.`,
+          });
+          return;
+        }
         this.selectCard(card);
         this.onSelectComponent(item.type);
         globalEventBus.emit('COMPONENT_DRAG_INITIATED', { type: item.type });
@@ -178,6 +209,7 @@ export class BuildDrawer {
 
       card.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (!isUnlocked) return;
         this.selectCard(card);
         this.onSelectComponent(item.type);
         globalEventBus.emit('START_PLACEMENT_MODE', { type: item.type });
@@ -188,32 +220,13 @@ export class BuildDrawer {
   }
 
   getItemIcon(type) {
-    switch (type) {
-      case NodeType.CLIENT_INGRESS: return '🌐';
-      case NodeType.DNS_ROUTING: return '🧭';
-      case NodeType.WAF_SHIELD: return '🛡️';
-      case NodeType.CDN_EDGE: return '⚡';
-      case NodeType.LOAD_BALANCER: return '🔀';
-      case NodeType.API_GATEWAY: return '🚪';
-      case NodeType.COMPUTE_POD: return '⚙️';
-      case NodeType.SERVERLESS_FAAS: return '🚀';
-      case NodeType.MESSAGE_BROKER: return '📨';
-      case NodeType.CACHE_CLUSTER: return '💎';
-      case NodeType.DATABASE_SQL: return '🗄️';
-      case NodeType.DATABASE_NOSQL: return '📚';
-      case NodeType.OBJECT_STORAGE: return '📦';
-      case FacilityComponentType.SERVER_RACK_42U: return '🏢';
-      case FacilityComponentType.CRAC_CHILLER: return '❄️';
-      case FacilityComponentType.PDU_3PHASE: return '⚡';
-      case FacilityComponentType.UPS_BATTERY: return '🔋';
-      case FacilityComponentType.DIESEL_GENERATOR: return '⛽';
-      case FacilityComponentType.AISLE_CONTAINMENT: return '🧱';
-      default: return '📦';
-    }
+    return getGlyphSvg(type, { size: 24 });
   }
 
   destroy() {
     if (this.unsubscribeExitPlacement) this.unsubscribeExitPlacement();
+    if (this.unsubscribeTechUnlocked) this.unsubscribeTechUnlocked();
+    if (this.unsubscribeIncidentTriggered) this.unsubscribeIncidentTriggered();
     if (this.rootElement && this.rootElement.parentNode) {
       this.rootElement.parentNode.removeChild(this.rootElement);
     }

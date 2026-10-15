@@ -31,14 +31,21 @@ export class AudioManager {
     this.isUnlocked = false;
     this.isAmbientRunning = false;
     this.isSirenActive = false;
+    this.isMusicRunning = false;
+    this.isCrisisStemActive = false;
 
     this.masterGainNode = null;
+    this.musicGainNode = null;
     this.sfxGainNode = null;
     this.ambientGainNode = null;
     this.ambientSourceNode = null;
     this.ambientFilterNode = null;
     this.sirenOscillator = null;
     this.sirenLfo = null;
+
+    this.ambientMusicGain = null;
+    this.crisisMusicGain = null;
+    this.musicNodes = [];
 
     if (this.ctx) {
       this.initAudioGraph();
@@ -50,9 +57,11 @@ export class AudioManager {
 
   initAudioGraph() {
     this.masterGainNode = this.ctx.createGain();
+    this.musicGainNode = this.ctx.createGain();
     this.sfxGainNode = this.ctx.createGain();
     this.ambientGainNode = this.ctx.createGain();
 
+    this.musicGainNode.connect(this.masterGainNode);
     this.sfxGainNode.connect(this.masterGainNode);
     this.ambientGainNode.connect(this.masterGainNode);
     this.masterGainNode.connect(this.ctx.destination);
@@ -63,14 +72,49 @@ export class AudioManager {
   updateGainLevels() {
     if (!this.ctx) return;
     const now = this.ctx.currentTime || 0;
-    const sfxVol = this.settings.getEffectiveSfxVolume();
-    const ambVol = this.settings.getEffectiveAmbientVolume();
+    const s = this.settings.getSettings();
 
+    const masterVol = s.isMasterMuted ? 0 : s.masterVolume;
+    const musicVol = s.isMusicMuted ? 0 : s.musicVolume;
+    const sfxVol = s.isSfxMuted ? 0 : s.sfxVolume;
+    const ambVol = s.isAmbientMuted ? 0 : s.ambientVolume;
+
+    if (this.masterGainNode) {
+      this.masterGainNode.gain.setValueAtTime(masterVol, now);
+    }
+    if (this.musicGainNode) {
+      this.musicGainNode.gain.setValueAtTime(musicVol, now);
+    }
     if (this.sfxGainNode) {
       this.sfxGainNode.gain.setValueAtTime(sfxVol, now);
     }
     if (this.ambientGainNode) {
       this.ambientGainNode.gain.setValueAtTime(ambVol, now);
+    }
+  }
+
+  setBusVolume(busName, volume) {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime || 0;
+    const v = Math.max(0, Math.min(1, volume));
+    switch (busName.toLowerCase()) {
+      case 'master':
+        this.settings.setMasterVolume(v);
+        if (this.masterGainNode) this.masterGainNode.gain.setValueAtTime(v, now);
+        break;
+      case 'music':
+        this.settings.setMusicVolume(v);
+        if (this.musicGainNode) this.musicGainNode.gain.setValueAtTime(v, now);
+        break;
+      case 'sfx':
+        this.settings.setSfxVolume(v);
+        if (this.sfxGainNode) this.sfxGainNode.gain.setValueAtTime(v, now);
+        break;
+      case 'ambience':
+      case 'ambient':
+        this.settings.setAmbientVolume(v);
+        if (this.ambientGainNode) this.ambientGainNode.gain.setValueAtTime(v, now);
+        break;
     }
   }
 
@@ -222,6 +266,149 @@ export class AudioManager {
     this.sirenOscillator = null;
     this.sirenLfo = null;
     this.isSirenActive = false;
+  }
+
+  /**
+   * Start procedural dual-stem adaptive music (calm planning vs high-tempo crisis pulse)
+   */
+  startAdaptiveMusic() {
+    if (!this.ctx || this.isMusicRunning) return;
+
+    try {
+      const now = this.ctx.currentTime || 0;
+      this.musicNodes = [];
+
+      this.ambientMusicGain = this.ctx.createGain();
+      this.crisisMusicGain = this.ctx.createGain();
+
+      this.ambientMusicGain.gain.setValueAtTime(1.0, now);
+      this.crisisMusicGain.gain.setValueAtTime(0.001, now);
+
+      this.ambientMusicGain.connect(this.musicGainNode);
+      this.crisisMusicGain.connect(this.musicGainNode);
+
+      // Ambient stem: warm melodic drone (pentatonic synth chords)
+      const droneFreqs = [220, 277.18, 329.63];
+      droneFreqs.forEach((freq) => {
+        const osc = this.ctx.createOscillator();
+        const filter = this.ctx.createBiquadFilter();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now);
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(450, now);
+
+        gain.gain.setValueAtTime(0.08, now);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ambientMusicGain);
+
+        osc.start();
+        this.musicNodes.push(osc);
+      });
+
+      // Crisis stem: 140 BPM driving pulse synth bass (sawtooth + resonant lowpass)
+      const crisisOsc = this.ctx.createOscillator();
+      const crisisFilter = this.ctx.createBiquadFilter();
+      const crisisLfo = this.ctx.createOscillator();
+      const crisisLfoGain = this.ctx.createGain();
+
+      crisisOsc.type = 'sawtooth';
+      crisisOsc.frequency.setValueAtTime(110, now);
+
+      crisisFilter.type = 'lowpass';
+      crisisFilter.frequency.setValueAtTime(700, now);
+      if (crisisFilter.Q) crisisFilter.Q.setValueAtTime(4, now);
+
+      crisisLfo.type = 'sawtooth';
+      crisisLfo.frequency.setValueAtTime(4.66, now);
+      crisisLfoGain.gain.setValueAtTime(0.3, now);
+
+      crisisLfo.connect(crisisLfoGain);
+      crisisOsc.connect(crisisFilter);
+      crisisFilter.connect(this.crisisMusicGain);
+
+      crisisOsc.start();
+      crisisLfo.start();
+      this.musicNodes.push(crisisOsc, crisisLfo);
+
+      this.isMusicRunning = true;
+      this.isCrisisStemActive = false;
+    } catch (e) {
+      console.warn('[AudioManager] Failed to start adaptive music:', e);
+    }
+  }
+
+  /**
+   * Stop adaptive background music
+   */
+  stopAdaptiveMusic() {
+    if (!this.isMusicRunning) return;
+    try {
+      this.musicNodes.forEach((node) => {
+        try {
+          if (node.stop) node.stop();
+          if (node.disconnect) node.disconnect();
+        } catch (e) {}
+      });
+      this.musicNodes = [];
+      if (this.ambientMusicGain) {
+        this.ambientMusicGain.disconnect();
+        this.ambientMusicGain = null;
+      }
+      if (this.crisisMusicGain) {
+        this.crisisMusicGain.disconnect();
+        this.crisisMusicGain = null;
+      }
+    } catch (e) {}
+    this.isMusicRunning = false;
+    this.isCrisisStemActive = false;
+  }
+
+  /**
+   * Cross-fade between ambient planning and high-tempo crisis stems
+   * @param {boolean} isActive
+   */
+  setIncidentCrisisStem(isActive) {
+    this.isCrisisStemActive = Boolean(isActive);
+    if (!this.ctx || !this.ambientMusicGain || !this.crisisMusicGain) return;
+
+    const now = this.ctx.currentTime || 0;
+    if (this.isCrisisStemActive) {
+      this.crisisMusicGain.gain.setValueAtTime(this.crisisMusicGain.gain.value || 0.001, now);
+      this.crisisMusicGain.gain.linearRampToValueAtTime(0.7, now + 0.3);
+
+      this.ambientMusicGain.gain.setValueAtTime(this.ambientMusicGain.gain.value || 1.0, now);
+      this.ambientMusicGain.gain.linearRampToValueAtTime(0.25, now + 0.3);
+    } else {
+      this.crisisMusicGain.gain.setValueAtTime(this.crisisMusicGain.gain.value || 0.7, now);
+      this.crisisMusicGain.gain.linearRampToValueAtTime(0.001, now + 0.5);
+
+      this.ambientMusicGain.gain.setValueAtTime(this.ambientMusicGain.gain.value || 0.25, now);
+      this.ambientMusicGain.gain.linearRampToValueAtTime(1.0, now + 0.5);
+    }
+  }
+
+  /**
+   * Tactile mechanical foley
+   */
+  playCableConnect() {
+    this.playSfx('CABLE_CONNECTED');
+  }
+
+  playCableCut() {
+    this.playSfx('NODE_REMOVED');
+  }
+
+  playAlarmKlaxon() {
+    this.startSiren();
+  }
+
+  playNodeClick() {
+    this.playSfx('UI_CLICK');
   }
 
   /**
@@ -399,20 +586,24 @@ export class AudioManager {
 
     this.eventBus.on(EngineEventTypes.INCIDENT_TRIGGERED, () => {
       this.startSiren();
+      this.setIncidentCrisisStem(true);
     });
 
     this.eventBus.on(EngineEventTypes.INCIDENT_MITIGATED, () => {
       this.stopSiren();
+      this.setIncidentCrisisStem(false);
       this.playSfx('INCIDENT_RESOLVED');
     });
 
     this.eventBus.on('LEVEL_VICTORY', () => {
       this.stopSiren();
+      this.setIncidentCrisisStem(false);
       this.playSfx('LEVEL_VICTORY');
     });
 
     this.eventBus.on('LEVEL_DEFEAT', () => {
       this.stopSiren();
+      this.setIncidentCrisisStem(false);
       this.playSfx('LEVEL_DEFEAT');
     });
 

@@ -9,7 +9,9 @@ import { TrafficEngine } from './TrafficEngine.js';
 import { EconomicEngine } from './EconomicEngine.js';
 import { ThermalEngine } from './ThermalEngine.js';
 import { PowerEngine } from './PowerEngine.js';
+import { CircuitBreaker } from './CircuitBreaker.js';
 import { EngineEventTypes, globalEventBus } from '../events/EventBus.js';
+import { serializeState } from '../../storage/StatePersistence.js';
 
 let nodeCounter = 0;
 let connCounter = 0;
@@ -75,16 +77,26 @@ export class SimulationEngine {
       name: params.name || catalogItem.name,
       gridX: params.gridX ?? 0,
       gridY: params.gridY ?? 0,
+      zone: params.zone || params.availabilityZone || 'us-east-1a',
       costBuy: buyCost,
       costOpexPerSec: catalogItem.costOpexPerSec || 0,
-      capacityRps: catalogItem.capacityRps || 500,
+      capacityRps: params.capacityRps || catalogItem.capacityRps || 500,
       baseLatencyMs: catalogItem.baseLatencyMs || 5,
       currentRps: 0,
-      cpuUtilization: 0.1,
+      cpuUtilization: params.cpuUtilization !== undefined ? params.cpuUtilization : 0.1,
       status: 'HEALTHY',
       thermalWatts: catalogItem.thermalWatts || 100,
       colorHex: catalogItem.colorHex || 0x3b82f6,
     };
+
+    if (node.type === NodeType.API_GATEWAY) {
+      node.circuitBreaker = new CircuitBreaker({
+        id: `cb_${node.id}`,
+        name: `${node.name} Circuit Breaker`,
+        consecutiveFailuresThreshold: params.breakerFailureThreshold || 5,
+        tripCooldownSec: params.breakerCooldownSec || 5,
+      });
+    }
 
     this.nodes.set(node.id, node);
     this.recalculateTotalOpex();
@@ -139,7 +151,7 @@ export class SimulationEngine {
     // Check if already connected
     for (const conn of this.connections.values()) {
       if (conn.sourceNodeId === sourceNodeId && conn.targetNodeId === targetNodeId) {
-        return conn;
+        return null;
       }
     }
 
@@ -362,6 +374,16 @@ export class SimulationEngine {
     // 1. Advance traffic engine
     this.trafficEngine.tick(deltaSec, this.nodes, this.connections);
 
+    // 1b. Advance node circuit breakers
+    for (const node of this.nodes.values()) {
+      if (node.circuitBreaker) {
+        node.circuitBreaker.tick(deltaSec);
+      }
+    }
+
+    // 1c. Evaluate Horizontal Pod Autoscaler (HPA)
+    this.evaluateHpa(deltaSec);
+
     // 2. Advance thermodynamics engine
     this.thermalEngine.tick(deltaSec, this.facilityComponents);
 
@@ -381,6 +403,106 @@ export class SimulationEngine {
     this.eventBus.emit(EngineEventTypes.STATE_SNAPSHOT_EMITTED, {
       snapshot: this.getSnapshot(),
     });
+  }
+
+  /**
+   * Forward a packet through a connection link, applying Multi-AZ cross-zone latency and egress costs
+   * @param {Object} packet
+   * @param {Object} connection
+   * @returns {Object|null}
+   */
+  forwardPacketThroughConnection(packet, connection) {
+    if (!packet || !connection) return null;
+    const srcNode = this.nodes.get(connection.sourceNodeId);
+    const tgtNode = this.nodes.get(connection.targetNodeId);
+
+    this.trafficEngine.forwardPacket(packet, connection.targetNodeId, connection);
+
+    // Multi-AZ cross-zone latency and egress billing
+    if (srcNode && tgtNode && srcNode.zone && tgtNode.zone && srcNode.zone !== tgtNode.zone) {
+      packet.elapsedLatencyMs += 5;
+      this.economicEngine.deductCash(10); // 10 micro-cents cross-zone egress fee
+    }
+
+    return packet;
+  }
+
+  /**
+   * Enable and configure Horizontal Pod Autoscaler (HPA)
+   * @param {Object} [config]
+   */
+  enableHpa(config = {}) {
+    this.hpaConfig = {
+      enabled: true,
+      targetCpuUtilization: config.targetCpuUtilization ?? 0.70,
+      minCapacityPerPod: config.minCapacityPerPod ?? 500,
+      maxCapacityPerPod: config.maxCapacityPerPod ?? 3000,
+      scaleStepRps: config.scaleStepRps ?? 200,
+      cooldownSec: config.cooldownSec ?? 5,
+      ...config,
+    };
+    this.hpaCooldownElapsed = this.hpaConfig.cooldownSec;
+  }
+
+  /**
+   * Evaluate HPA scaling triggers across compute pods
+   * @param {number} [deltaSec=1.0]
+   */
+  evaluateHpa(deltaSec = 1.0) {
+    if (!this.hpaConfig || !this.hpaConfig.enabled) return;
+
+    this.hpaCooldownElapsed = (this.hpaCooldownElapsed || 0) + deltaSec;
+    if (this.hpaCooldownElapsed < (this.hpaConfig.cooldownSec || 0)) {
+      return;
+    }
+
+    const computePods = Array.from(this.nodes.values()).filter(
+      (n) => n.type === NodeType.COMPUTE_POD
+    );
+    if (computePods.length === 0) return;
+
+    const totalCpu = computePods.reduce((sum, n) => sum + (n.cpuUtilization || 0), 0);
+    const avgCpu = totalCpu / computePods.length;
+
+    if (avgCpu > this.hpaConfig.targetCpuUtilization) {
+      let scaled = false;
+      for (const pod of computePods) {
+        if (pod.capacityRps < this.hpaConfig.maxCapacityPerPod) {
+          pod.capacityRps = Math.min(
+            this.hpaConfig.maxCapacityPerPod,
+            pod.capacityRps + this.hpaConfig.scaleStepRps
+          );
+          scaled = true;
+        }
+      }
+      if (scaled) {
+        this.hpaCooldownElapsed = 0;
+        this.eventBus.emit('HPA_SCALE_UP', {
+          avgCpu,
+          targetCpu: this.hpaConfig.targetCpuUtilization,
+          podCount: computePods.length,
+        });
+      }
+    } else if (avgCpu < 0.30) {
+      let scaled = false;
+      for (const pod of computePods) {
+        if (pod.capacityRps > this.hpaConfig.minCapacityPerPod) {
+          pod.capacityRps = Math.max(
+            this.hpaConfig.minCapacityPerPod,
+            pod.capacityRps - this.hpaConfig.scaleStepRps
+          );
+          scaled = true;
+        }
+      }
+      if (scaled) {
+        this.hpaCooldownElapsed = 0;
+        this.eventBus.emit('HPA_SCALE_DOWN', {
+          avgCpu,
+          minCapacity: this.hpaConfig.minCapacityPerPod,
+          podCount: computePods.length,
+        });
+      }
+    }
   }
 
   /**
@@ -509,4 +631,21 @@ export class SimulationEngine {
 
     this.recalculateTotalOpex();
   }
+
+  /**
+   * Serialize current engine state into schema-compliant save object
+   * @returns {Object}
+   */
+  serializeState() {
+    return serializeState(this.getSnapshot());
+  }
+
+  /**
+   * Restore engine state from saved object
+   * @param {Object} state
+   */
+  deserializeState(state) {
+    this.loadState(state);
+  }
 }
+

@@ -5,6 +5,7 @@
  */
 
 import { globalEventBus, EngineEventTypes } from '../core/events/EventBus.js';
+import { getGlyphSvg } from '../render/ComponentGlyphs.js';
 
 export class NodeInspector {
   /**
@@ -174,24 +175,7 @@ export class NodeInspector {
   }
 
   getNodeIcon(type) {
-    switch (type) {
-      case 'CLIENT_INGRESS': return '🌐';
-      case 'DNS_ROUTING': return '🧭';
-      case 'WAF_SHIELD': return '🛡️';
-      case 'CDN_EDGE': return '⚡';
-      case 'LOAD_BALANCER': return '🔀';
-      case 'API_GATEWAY': return '🚪';
-      case 'COMPUTE_POD': return '⚙️';
-      case 'SERVERLESS_FAAS': return '🚀';
-      case 'MESSAGE_BROKER': return '📨';
-      case 'CACHE_CLUSTER': return '💎';
-      case 'DATABASE_SQL': return '🗄️';
-      case 'DATABASE_NOSQL': return '📚';
-      case 'OBJECT_STORAGE': return '📦';
-      case 'UPS_BATTERY': return '🔋';
-      case 'DIESEL_GENERATOR': return '⚡';
-      default: return '📦';
-    }
+    return getGlyphSvg(type, { size: 28 });
   }
 
   showNode(node) {
@@ -217,7 +201,7 @@ export class NodeInspector {
     nodeActions.classList.remove('hidden');
     connActions.classList.add('hidden');
 
-    iconEl.textContent = this.getNodeIcon(node.type);
+    iconEl.innerHTML = this.getNodeIcon(node.type);
     titleEl.textContent = node.name || node.type;
     typeEl.textContent = node.type;
 

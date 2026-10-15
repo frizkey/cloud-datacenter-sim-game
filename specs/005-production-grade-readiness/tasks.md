@@ -80,14 +80,14 @@
 **Independent Test**: Adjust volume sliders in SettingsModal to verify independent bus attenuation; trigger incident and verify high-tempo crisis music layers in smoothly without audio clipping.
 
 ### Tests for User Story 3 ⚠️
-- [ ] T023 [P] [US3] Unit test for 4-bus audio mixing and dynamic incident stems in `tests/adaptive-audio.test.js`
+- [x] T023 [P] [US3] Unit test for 4-bus audio mixing and dynamic incident stems in `tests/adaptive-audio.test.js`
 
 ### Implementation for User Story 3
-- [ ] T024 [US3] Implement 4-bus mixer architecture (Master, Music, SFX, Ambience) in `src/core/audio/AudioManager.js`
-- [ ] T025 [US3] Implement multi-stem adaptive BGM with smooth gain cross-fading based on traffic RPS and incident state in `src/core/audio/AudioManager.js`
-- [ ] T026 [US3] Implement spatial datacenter fan airflow and transformer hum foley in `src/core/audio/AudioManager.js`
-- [ ] T027 [US3] Implement tactile mechanical foley for node placement, cable connect/cut, and alarm klaxons in `src/core/audio/AudioManager.js`
-- [ ] T028 [US3] Update audio settings sliders in `src/ui/modals/SettingsModal.js` and persist to `src/core/audio/AudioSettings.js`
+- [x] T024 [US3] Implement 4-bus mixer architecture (Master, Music, SFX, Ambience) in `src/core/audio/AudioManager.js`
+- [x] T025 [US3] Implement multi-stem adaptive BGM with smooth gain cross-fading based on traffic RPS and incident state in `src/core/audio/AudioManager.js`
+- [x] T026 [US3] Implement spatial datacenter fan airflow and transformer hum foley in `src/core/audio/AudioManager.js`
+- [x] T027 [US3] Implement tactile mechanical foley for node placement, cable connect/cut, and alarm klaxons in `src/core/audio/AudioManager.js`
+- [x] T028 [US3] Update audio settings sliders in `src/ui/modals/SettingsModal.js` and persist to `src/core/audio/AudioSettings.js`
 
 **Checkpoint**: User Stories 1, 2, and 3 provide full audiovisual and tactile immersion.
 
@@ -100,15 +100,15 @@
 **Independent Test**: Unlock Cloud-Native Era in Research Lab modal and verify WAF/CDN appear in BuildDrawer; accept NeoVault contract and verify bonus revenue stream while meeting SLA requirements.
 
 ### Tests for User Story 4 ⚠️
-- [ ] T029 [P] [US4] Unit test for SRE Tech Tree research progression in `tests/tech-tree.test.js`
-- [ ] T030 [P] [US4] Unit test for Client Enterprise RFP contract evaluation in `tests/client-contracts.test.js`
+- [x] T029 [P] [US4] Unit test for SRE Tech Tree research progression in `tests/tech-tree.test.js`
+- [x] T030 [P] [US4] Unit test for Client Enterprise RFP contract evaluation in `tests/client-contracts.test.js`
 
 ### Implementation for User Story 4
-- [ ] T031 [US4] Implement 4-era research tech tree state machine in `src/core/sim/TechTree.js`
-- [ ] T032 [US4] Implement ClientContract manager with real-time SLA verification and payout/penalty loops in `src/core/sim/ContractManager.js`
-- [ ] T033 [US4] Implement Research Lab modal UI in `src/ui/modals/TechTreeModal.js`
-- [ ] T034 [US4] Implement Enterprise RFPs & Service Contracts modal UI in `src/ui/modals/ContractModal.js`
-- [ ] T035 [US4] Integrate tech tree unlock gating into `src/ui/BuildDrawer.js` and Cockpit HUD buttons in `src/ui/CockpitHUD.js`
+- [x] T031 [US4] Implement 4-era research tech tree state machine in `src/core/sim/TechTree.js`
+- [x] T032 [US4] Implement ClientContract manager with real-time SLA verification and payout/penalty loops in `src/core/sim/ContractManager.js`
+- [x] T033 [US4] Implement Research Lab modal UI in `src/ui/modals/TechTreeModal.js`
+- [x] T034 [US4] Implement Enterprise RFPs & Service Contracts modal UI in `src/ui/modals/ContractModal.js`
+- [x] T035 [US4] Integrate tech tree unlock gating into `src/ui/BuildDrawer.js` and Cockpit HUD buttons in `src/ui/CockpitHUD.js`
 
 **Checkpoint**: Deep tycoon progression and client contract gameplay fully operational.
 
@@ -121,13 +121,13 @@
 **Independent Test**: Trigger Cache Stampede incident, open APM dashboard, verify 100% DB IOPS and 0% cache hit, deploy read replica and pre-warm cache, and confirm telemetry recovery.
 
 ### Tests for User Story 5 ⚠️
-- [ ] T036 [P] [US5] Unit test for APM rolling window metrics and forensic remediation in `tests/apm-telemetry.test.js`
+- [x] T036 [P] [US5] Unit test for APM rolling window metrics and forensic remediation in `tests/apm-telemetry.test.js`
 
 ### Implementation for User Story 5
-- [ ] T037 [US5] Implement 60-second rolling telemetry ring buffer (P95/P99 latency, 4xx/5xx status codes) in `src/core/sim/TrafficEngine.js`
-- [ ] T038 [US5] Implement APM Dashboard modal UI with latency histogram and error distribution in `src/ui/modals/APMDashboardModal.js`
-- [ ] T039 [US5] Connect forensic triage actions (scaling replicas, cache pre-warming, WAF ruleset updates) to live incident recovery in `src/core/sim/ChaosDirector.js`
-- [ ] T040 [US5] Add APM quick-access button to Cockpit HUD in `src/ui/CockpitHUD.js`
+- [x] T037 [US5] Implement 60-second rolling telemetry ring buffer (P95/P99 latency, 4xx/5xx status codes) in `src/core/sim/TrafficEngine.js`
+- [x] T038 [US5] Implement APM Dashboard modal UI with latency histogram and error distribution in `src/ui/modals/APMDashboardModal.js`
+- [x] T039 [US5] Connect forensic triage actions (scaling replicas, cache pre-warming, WAF ruleset updates) to live incident recovery in `src/core/sim/ChaosDirector.js`
+- [x] T040 [US5] Add APM quick-access button to Cockpit HUD in `src/ui/CockpitHUD.js`
 
 **Checkpoint**: Forensic incident triage replaces simplistic 1-click remediation.
 
@@ -140,14 +140,14 @@
 **Independent Test**: Tap node on mobile viewport and verify radial action wheel appears; trigger incident and verify BuildDrawer auto-collapses; test notch padding on narrow landscape screens.
 
 ### Tests for User Story 6 ⚠️
-- [ ] T041 [P] [US6] Unit test for radial touch menu state and safe area constraints in `tests/radial-menu.test.js`
+- [x] T041 [P] [US6] Unit test for radial touch menu state and safe area constraints in `tests/radial-menu.test.js`
 
 ### Implementation for User Story 6
-- [ ] T042 [US6] Implement compact radial touch context menu component in `src/ui/RadialTouchMenu.js`
-- [ ] T043 [US6] Wire radial context menu on node tap in `src/scenes/TopologyScene.js` (Restart, Scale, Cut Cable, Inspect, Delete)
-- [ ] T044 [US6] Implement auto-collapse of bottom BuildDrawer when emergency incident alerts appear in `src/ui/BuildDrawer.js` and `src/ui/IncidentBar.js`
-- [ ] T045 [US6] Add notch safe-area inset rules (`env(safe-area-inset-*)`) and colorblind shape indicators in `src/style.css`
-- [ ] T046 [US6] Implement i18n locale string resolver in `src/locales/i18n.js` and update UI modals
+- [x] T042 [US6] Implement compact radial touch context menu component in `src/ui/RadialTouchMenu.js`
+- [x] T043 [US6] Wire radial context menu on node tap in `src/scenes/TopologyScene.js` (Restart, Scale, Cut Cable, Inspect, Delete)
+- [x] T044 [US6] Implement auto-collapse of bottom BuildDrawer when emergency incident alerts appear in `src/ui/BuildDrawer.js` and `src/ui/IncidentBar.js`
+- [x] T045 [US6] Add notch safe-area inset rules (`env(safe-area-inset-*)`) and colorblind shape indicators in `src/style.css`
+- [x] T046 [US6] Implement i18n locale string resolver in `src/locales/i18n.js` and update UI modals
 
 **Checkpoint**: Mobile touch ergonomics and accessibility validated across small landscape viewports.
 
@@ -160,13 +160,13 @@
 **Independent Test**: Send write-heavy traffic and verify primary DB connection pool exhaustion; simulate service outage and verify Circuit Breaker trips open with fast-fail fallback responses.
 
 ### Tests for User Story 7 ⚠️
-- [ ] T047 [P] [US7] Unit test for multi-workload traffic packets and circuit breaker trips in `tests/workload-resilience.test.js`
+- [x] T047 [P] [US7] Unit test for multi-workload traffic packets and circuit breaker trips in `tests/workload-resilience.test.js`
 
 ### Implementation for User Story 7
-- [ ] T048 [US7] Implement multi-workload packet routing (Static CDN, API Reads, API Writes with DB locks, Async Kafka jobs, Cyber attacks) in `src/core/sim/TrafficEngine.js`
-- [ ] T049 [US7] Implement Horizontal Pod Autoscaler (HPA) logic with configurable CPU/queue thresholds in `src/core/sim/SimulationEngine.js`
-- [ ] T050 [US7] Implement Circuit Breaker state machine (Closed, Open, Half-Open) in `src/core/sim/CircuitBreaker.js` and wire into Gateway nodes
-- [ ] T051 [US7] Simulate Multi-AZ replication lag and cross-zone egress cost in `src/core/sim/SimulationEngine.js`
+- [x] T048 [US7] Implement multi-workload packet routing (Static CDN, API Reads, API Writes with DB locks, Async Kafka jobs, Cyber attacks) in `src/core/sim/TrafficEngine.js`
+- [x] T049 [US7] Implement Horizontal Pod Autoscaler (HPA) logic with configurable CPU/queue thresholds in `src/core/sim/SimulationEngine.js`
+- [x] T050 [US7] Implement Circuit Breaker state machine (Closed, Open, Half-Open) in `src/core/sim/CircuitBreaker.js` and wire into Gateway nodes
+- [x] T051 [US7] Simulate Multi-AZ replication lag and cross-zone egress cost in `src/core/sim/SimulationEngine.js`
 
 **Checkpoint**: Advanced architectural simulation delivers authentic SRE depth.
 
@@ -179,13 +179,13 @@
 **Independent Test**: Export an architecture to Base64 blueprint string, paste into another slot, and confirm exact topology recreation; verify locked 60 FPS under 5,000 packets.
 
 ### Tests for User Story 8 ⚠️
-- [ ] T052 [P] [US8] Unit test for Base64 blueprint string export/import roundtrip in `tests/blueprint-codec.test.js`
+- [x] T052 [P] [US8] Unit test for Base64 blueprint string export/import roundtrip in `tests/blueprint-codec.test.js`
 
 ### Implementation for User Story 8
-- [ ] T053 [US8] Implement Base64 architecture blueprint encoder and decoder in `src/storage/BlueprintCodec.js`
-- [ ] T054 [US8] Add Blueprint Export and Import modal UI in `src/ui/modals/BlueprintModal.js`
-- [ ] T055 [US8] Implement multi-slot save manager (Slot 1, Slot 2, Slot 3, Auto-save) in `src/storage/StatePersistence.js`
-- [ ] T056 [US8] Decouple 60 Hz simulation tick loop into Web Worker module in `src/core/sim/SimWorker.js`
+- [x] T053 [US8] Implement Base64 architecture blueprint encoder and decoder in `src/storage/BlueprintCodec.js`
+- [x] T054 [US8] Add Blueprint Export and Import modal UI in `src/ui/modals/BlueprintModal.js`
+- [x] T055 [US8] Implement multi-slot save manager (Slot 1, Slot 2, Slot 3, Auto-save) in `src/storage/StatePersistence.js`
+- [x] T056 [US8] Decouple 60 Hz simulation tick loop into Web Worker module in `src/core/sim/SimWorker.js`
 
 **Checkpoint**: Blueprint sharing and multi-slot persistence complete.
 
@@ -198,10 +198,10 @@
 **Independent Test**: Disconnect network in browser and verify full game loads and runs offline; run `npx cap sync android` and verify clean compilation.
 
 ### Implementation for User Story 9
-- [ ] T057 [P] [US9] Create offline Service Worker script (`public/sw.js`) caching core assets for 100% offline flight mode
-- [ ] T058 [US9] Register Service Worker in `src/main.js` with offline indicator toast
-- [ ] T059 [US9] Configure Android adaptive launcher icons, dark splash screens, and target SDK 34 in `android/`
-- [ ] T060 [US9] Verify production Capacitor Android sync via `npx cap sync android` and create release build verification script
+- [x] T057 [P] [US9] Create offline Service Worker script (`public/sw.js`) caching core assets for 100% offline flight mode
+- [x] T058 [US9] Register Service Worker in `src/main.js` with offline indicator toast
+- [x] T059 [US9] Configure Android adaptive launcher icons, dark splash screens, and target SDK 34 in `android/`
+- [x] T060 [US9] Verify production Capacitor Android sync via `npx cap sync android` and create release build verification script
 
 **Checkpoint**: Title is compliant and ready for Google Play, App Store, and PWA distribution.
 
@@ -211,11 +211,11 @@
 
 **Purpose**: System-wide hardening, stress testing, documentation, and final release verification.
 
-- [ ] T061 [P] Update user documentation and game manual in `docs/`
-- [ ] T062 Run 10,000-tick headless stress benchmark in `tests/stress-sim.benchmark.js` to verify zero float-point drift
-- [ ] T063 [P] Full end-to-end integration test of all 9 user stories in `tests/production-readiness.test.js`
-- [ ] T064 Execute full test suite `npm test` and production Vite build `npm run build`
-- [ ] T065 Validate complete quickstart verification guide in `specs/005-production-grade-readiness/quickstart.md`
+- [x] T061 [P] Update user documentation and game manual in `docs/`
+- [x] T062 Run 10,000-tick headless stress benchmark in `tests/stress-sim.benchmark.js` to verify zero float-point drift
+- [x] T063 [P] Full end-to-end integration test of all 9 user stories in `tests/production-readiness.test.js`
+- [x] T064 Execute full test suite `npm test` and production Vite build `npm run build`
+- [x] T065 Validate complete quickstart verification guide in `specs/005-production-grade-readiness/quickstart.md`
 
 ---
 

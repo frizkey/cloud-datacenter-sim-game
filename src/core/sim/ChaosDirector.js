@@ -76,6 +76,20 @@ export class ChaosDirector {
   }
 
   /**
+   * Resolve any active incident matching the given triage remediation action
+   * @param {string} remediationAction
+   * @returns {boolean} Whether an incident was resolved
+   */
+  resolveByRemediation(remediationAction) {
+    for (const [id, incident] of this.activeIncidents.entries()) {
+      if (incident.requiredRemediation === remediationAction) {
+        return this.resolveIncident(id, remediationAction);
+      }
+    }
+    return false;
+  }
+
+  /**
    * Step incident timers and handle expiration
    * @param {number} deltaSec
    */
@@ -124,6 +138,18 @@ export class ChaosDirector {
       targetComponentId: targetDbId,
       maxDurationSec: 40,
       requiredRemediation: 'DEPLOY_WAF_RULESET',
+    });
+  }
+
+  triggerCacheStampede(targetCacheId) {
+    return this.triggerIncident({
+      type: IncidentType.CACHE_STAMPEDE,
+      severity: IncidentSeverity.TIER_2_MEDIUM,
+      title: 'Cache Stampede Thundering Herd',
+      description: 'Hot key TTL expired, cascading 100% queries to database. Pre-warm cache keys or deploy replica.',
+      targetComponentId: targetCacheId,
+      maxDurationSec: 35,
+      requiredRemediation: 'PREWARM_CACHE',
     });
   }
 
