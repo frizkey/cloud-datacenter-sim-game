@@ -27,12 +27,6 @@ export class BuildDrawer {
       this.renderCategoryItems(this.currentCategory);
     });
 
-    this.unsubscribeIncidentTriggered = globalEventBus.on('INCIDENT_TRIGGERED', () => {
-      if (!this.isCollapsed) {
-        this.toggleCollapse();
-      }
-    });
-
     this.initDOM();
   }
 
@@ -40,10 +34,11 @@ export class BuildDrawer {
     this.rootElement = document.createElement('div');
     this.rootElement.className = 'build-drawer';
     this.rootElement.innerHTML = `
-      <!-- Collapsible Drawer Handle -->
-      <div class="drawer-header">
-        <button id="drawer-toggle-btn" class="drawer-handle" aria-label="Toggle Build Drawer">
-          <span class="handle-bar"></span>
+      <!-- Collapsible Drawer Header -->
+      <div class="drawer-header" id="drawer-header">
+        <button id="drawer-toggle-btn" class="drawer-handle" aria-label="Toggle Build Drawer" aria-expanded="true" title="Toggle build tray">
+          <span class="handle-chevron" id="drawer-chevron">▼</span>
+          <span class="handle-text" id="drawer-handle-label">BUILD</span>
         </button>
 
         <!-- Category Tabs -->
@@ -51,7 +46,7 @@ export class BuildDrawer {
           ${this.categories
             .map(
               (cat) => `
-            <button class="cat-tab ${cat === this.currentCategory ? 'active' : ''}" data-category="${cat}" role="tab">
+            <button class="cat-tab ${cat === this.currentCategory ? 'active' : ''}" data-category="${cat}" role="tab" aria-selected="${cat === this.currentCategory}">
               ${cat}
             </button>
           `
@@ -80,17 +75,33 @@ export class BuildDrawer {
 
     // Event listeners
     const toggleBtn = this.rootElement.querySelector('#drawer-toggle-btn');
-    toggleBtn.addEventListener('click', () => this.toggleCollapse());
+    toggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleCollapse();
+    });
+
+    // Clicking drawer header when collapsed expands the drawer
+    const header = this.rootElement.querySelector('#drawer-header');
+    header.addEventListener('click', (e) => {
+      if (e.target.closest('.category-tabs') || e.target.closest('#drawer-toggle-btn')) {
+        return;
+      }
+      if (this.isCollapsed) {
+        this.expand();
+      }
+    });
 
     const tabs = this.rootElement.querySelectorAll('.cat-tab');
     tabs.forEach((tab) => {
       tab.addEventListener('click', (e) => {
+        e.stopPropagation();
         const cat = e.currentTarget.getAttribute('data-category');
         this.selectCategory(cat);
       });
     });
 
     this.renderCategoryItems(this.currentCategory);
+    this.updateToggleIndicator();
   }
 
   selectCard(card) {
@@ -107,21 +118,60 @@ export class BuildDrawer {
     cards.forEach((c) => c.classList.remove('selected'));
   }
 
+  expand() {
+    this.isCollapsed = false;
+    if (this.rootElement) {
+      this.rootElement.classList.remove('collapsed');
+      this.updateToggleIndicator();
+    }
+  }
+
+  collapse() {
+    this.isCollapsed = true;
+    if (this.rootElement) {
+      this.rootElement.classList.add('collapsed');
+      this.updateToggleIndicator();
+    }
+  }
+
   toggleCollapse() {
-    this.isCollapsed = !this.isCollapsed;
-    this.rootElement.classList.toggle('collapsed', this.isCollapsed);
+    if (this.isCollapsed) {
+      this.expand();
+    } else {
+      this.collapse();
+    }
+  }
+
+  updateToggleIndicator() {
+    if (!this.rootElement) return;
+    const btn = this.rootElement.querySelector('#drawer-toggle-btn');
+    const chevron = this.rootElement.querySelector('#drawer-chevron');
+    const label = this.rootElement.querySelector('#drawer-handle-label');
+    if (btn) {
+      btn.setAttribute('aria-expanded', (!this.isCollapsed).toString());
+      btn.setAttribute('title', this.isCollapsed ? 'Expand build tray (▲)' : 'Collapse build tray (▼)');
+    }
+    if (chevron) {
+      chevron.textContent = this.isCollapsed ? '▲' : '▼';
+    }
+    if (label) {
+      label.textContent = this.isCollapsed ? 'EXPAND' : 'BUILD';
+    }
   }
 
   selectCategory(category) {
     this.currentCategory = category;
 
+    // Immediately expand drawer if collapsed so selected items are visible
+    if (this.isCollapsed) {
+      this.expand();
+    }
+
     const tabs = this.rootElement.querySelectorAll('.cat-tab');
     tabs.forEach((tab) => {
-      if (tab.getAttribute('data-category') === category) {
-        tab.classList.add('active');
-      } else {
-        tab.classList.remove('active');
-      }
+      const isMatch = tab.getAttribute('data-category') === category;
+      tab.classList.toggle('active', isMatch);
+      tab.setAttribute('aria-selected', isMatch.toString());
     });
 
     this.renderCategoryItems(category);
@@ -226,7 +276,6 @@ export class BuildDrawer {
   destroy() {
     if (this.unsubscribeExitPlacement) this.unsubscribeExitPlacement();
     if (this.unsubscribeTechUnlocked) this.unsubscribeTechUnlocked();
-    if (this.unsubscribeIncidentTriggered) this.unsubscribeIncidentTriggered();
     if (this.rootElement && this.rootElement.parentNode) {
       this.rootElement.parentNode.removeChild(this.rootElement);
     }
