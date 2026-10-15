@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ClientContractSchema",
+  "type": "object",
+  "required": [
+    "id",
+    "clientName",
+    "clientTier",
+    "description",
+    "requirements",
+    "financials",
+    "state",
+    "elapsedSec",
+    "healthConsecutiveSec"
+  ],
+  "properties": {
+    "id": { "type": "string" },
+    "clientName": { "type": "string" },
+    "clientTier": {
+      "type": "string",
+      "enum": ["STARTUP", "GROWTH", "ENTERPRISE", "HYPERSCALE"]
+    },
+    "description": { "type": "string" },
+    "requirements": {
+      "type": "object",
+      "required": ["minRps", "maxLatencyMs", "minSlaPercent", "durationSec"],
+      "properties": {
+        "minRps": { "type": "number", "minimum": 0 },
+        "maxLatencyMs": { "type": "number", "minimum": 1 },
+        "minSlaPercent": { "type": "number", "minimum": 0, "maximum": 100 },
+        "requiredComponents": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "durationSec": { "type": "number", "minimum": 10 }
+      }
+    },
+    "financials": {
+      "type": "object",
+      "required": ["payoutPerSecMicroCents", "bonusMicroCents", "penaltyPerBreachMicroCents"],
+      "properties": {
+        "payoutPerSecMicroCents": { "type": "integer", "minimum": 0 },
+        "bonusMicroCents": { "type": "integer", "minimum": 0 },
+        "penaltyPerBreachMicroCents": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "state": {
+      "type": "string",
+      "enum": ["AVAILABLE", "ACTIVE", "FULFILLED", "BREACHED", "EXPIRED"]
+    },
+    "elapsedSec": { "type": "number", "minimum": 0 },
+    "healthConsecutiveSec": { "type": "number", "minimum": 0 }
+  }
+}

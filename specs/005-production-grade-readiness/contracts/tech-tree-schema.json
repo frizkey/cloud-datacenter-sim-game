@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TechTreeSchema",
+  "type": "object",
+  "required": ["version", "nodes"],
+  "properties": {
+    "version": { "type": "string", "enum": ["1.0.0"] },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "era",
+          "name",
+          "description",
+          "researchCostMicroCents",
+          "prerequisiteTechIds",
+          "unlockedComponentTypes",
+          "unlockedMechanics",
+          "isUnlocked"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "era": { "type": "integer", "minimum": 1, "maximum": 4 },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "researchCostMicroCents": { "type": "integer", "minimum": 0 },
+          "prerequisiteTechIds": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "unlockedComponentTypes": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "unlockedMechanics": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "isUnlocked": { "type": "boolean" },
+          "unlockedAtTimestamp": { "type": "integer" }
+        }
+      }
+    }
+  }
+}

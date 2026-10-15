@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BlueprintSchema",
+  "type": "object",
+  "required": ["version", "generator", "title", "createdAtTimestamp", "nodes", "connections"],
+  "properties": {
+    "version": { "type": "string", "enum": ["1.0.0"] },
+    "generator": { "type": "string", "enum": ["cloudsim-blueprint"] },
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "createdAtTimestamp": { "type": "integer" },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "gridX", "gridY"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string" },
+          "gridX": { "type": "number" },
+          "gridY": { "type": "number" },
+          "name": { "type": "string" },
+          "autoscaling": {
+            "type": "object",
+            "properties": {
+              "enabled": { "type": "boolean" },
+              "minInstances": { "type": "integer", "minimum": 1 },
+              "maxInstances": { "type": "integer", "minimum": 1 },
+              "targetCpuUtil": { "type": "number", "minimum": 0.1, "maximum": 1.0 }
+            }
+          }
+        }
+      }
+    },
+    "connections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "sourceNodeId", "targetNodeId"],
+        "properties": {
+          "id": { "type": "string" },
+          "sourceNodeId": { "type": "string" },
+          "targetNodeId": { "type": "string" },
+          "isOrthogonal": { "type": "boolean" }
+        }
+      }
+    },
+    "facilityComponents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "isoX", "isoY"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string" },
+          "isoX": { "type": "number" },
+          "isoY": { "type": "number" }
+        }
+      }
+    }
+  }
+}
